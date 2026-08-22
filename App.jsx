@@ -8,9 +8,9 @@ import {
 } from "lucide-react";
 
 /* ---------------------------------------------------------------- tokens
-   Paleta tirada do padrão IWF de anilhas: azul 20kg, vermelho 25kg,
-   amarelo 15kg, verde 10kg. Azul é a cor de ação, vermelho só em PR/alerta.
-   Números em mono — isto é um diário de cargas.                          */
+   Redesign "Dark Mode Premium" — fundo #0F172A, cards #1E293B,
+   azul de destaque #3B82F6. Cantos 16px, espaçamento generoso,
+   glassmorphism sutil em overlays (header e barra de descanso).      */
 
 const PLATE_COLORS = {
   25: "#D42D2D", 20: "#1E5BC6", 15: "#E8B417", 10: "#2E9E5B",
@@ -24,9 +24,9 @@ const THEMES = {
     pr: "#D42D2D", ok: "#2E9E5B", warn: "#C08A05", grid: "#E4E4DE",
   },
   dark: {
-    bg: "#0E1013", surface: "#181B20", surface2: "#22262C", line: "#2C313A",
-    ink: "#F2F3F5", muted: "#8A929E", accent: "#4C86F5", accentInk: "#0E1013",
-    pr: "#F05454", ok: "#4ECB79", warn: "#E8B417", grid: "#262B33",
+    bg: "#0F172A", surface: "#1E293B", surface2: "#28374B", line: "rgba(255,255,255,0.08)",
+    ink: "#F1F5F9", muted: "#94A3B8", accent: "#3B82F6", accentInk: "#FFFFFF",
+    pr: "#FB7185", ok: "#34D399", warn: "#FBBF24", grid: "#243044",
   },
 };
 
@@ -154,9 +154,9 @@ const MARCOS_IMPORTADOS = [
 ];
 
 const TIPOS_MARCO = [
-  { id: "ciclo", label: "Novo ciclo", cor: "#1E5BC6" },
-  { id: "deload", label: "Deload", cor: "#E8B417" },
-  { id: "pr", label: "PR", cor: "#D42D2D" },
+  { id: "ciclo", label: "Novo ciclo", cor: "#3B82F6" },
+  { id: "deload", label: "Deload", cor: "#FBBF24" },
+  { id: "pr", label: "PR", cor: "#FB7185" },
 ];
 
 /* ------------------------------------------------------------- utilidades */
@@ -203,6 +203,27 @@ function semear() {
   return linhas;
 }
 
+/* ------ persistência local ------------------------------------------
+   Fora do sandbox de artifacts do Claude.ai, window.storage não existe.
+   Estas duas funções leem/gravam em localStorage, que é o equivalente
+   direto (mesmo dispositivo/navegador, persiste offline).             */
+function storageGet(key) {
+  try {
+    const raw = window.localStorage.getItem(key);
+    return raw ? { value: raw } : null;
+  } catch {
+    return null;
+  }
+}
+function storageSet(key, value) {
+  try {
+    window.localStorage.setItem(key, value);
+    return true;
+  } catch {
+    return null;
+  }
+}
+
 /* ---------------------------------------------------------------- app */
 
 export default function AppTreino() {
@@ -219,34 +240,31 @@ export default function AppTreino() {
   const c = THEMES[tema];
 
   useEffect(() => {
-    (async () => {
-      let d = null;
-      try {
-        const r = await window.storage.get(STORE_KEY);
-        if (r?.value) d = JSON.parse(r.value);
-      } catch { /* primeira execução */ }
+    let d = null;
+    try {
+      const r = storageGet(STORE_KEY);
+      if (r?.value) d = JSON.parse(r.value);
+    } catch { /* primeira execução */ }
 
-      if (d) {
-        setTreinos(d.treinos?.length ? d.treinos : TREINOS_PADRAO);
-        setSeries(d.series || []);
-        setMarcos(d.marcos || []);
-        setDescanso(d.descanso ?? 90);
-        setSessao(d.sessao || null);
-        if (d.tema) setTema(d.tema);
-      } else {
-        setSeries(semear());
-        setMarcos(MARCOS_IMPORTADOS);
-      }
-      setCarregando(false);
-    })();
+    if (d) {
+      setTreinos(d.treinos?.length ? d.treinos : TREINOS_PADRAO);
+      setSeries(d.series || []);
+      setMarcos(d.marcos || []);
+      setDescanso(d.descanso ?? 90);
+      setSessao(d.sessao || null);
+      if (d.tema) setTema(d.tema);
+    } else {
+      setSeries(semear());
+      setMarcos(MARCOS_IMPORTADOS);
+    }
+    setCarregando(false);
   }, []);
 
-  const salvar = useCallback(async () => {
-    try {
-      await window.storage.set(STORE_KEY, JSON.stringify({
-        treinos, series, marcos, descanso, sessao, tema,
-      }));
-    } catch {
+  const salvar = useCallback(() => {
+    const ok = storageSet(STORE_KEY, JSON.stringify({
+      treinos, series, marcos, descanso, sessao, tema,
+    }));
+    if (!ok) {
       setAviso("Não deu para salvar agora. Os dados seguem na tela até você fechar.");
       setTimeout(() => setAviso(null), 4000);
     }
@@ -315,7 +333,7 @@ export default function AppTreino() {
         <Topo c={c} tema={tema} setTema={setTema} sessao={sessao} />
 
         {aviso && (
-          <div className="mx-4 mb-3 px-3 py-2 rounded-xl text-sm" style={{ background: c.surface2 }}>{aviso}</div>
+          <div className="mx-4 mb-3 px-4 py-3 rounded-2xl text-sm" style={{ background: c.surface2 }}>{aviso}</div>
         )}
 
         {aba === "treinos" && (
@@ -355,15 +373,23 @@ export default function AppTreino() {
 
 function Topo({ c, tema, setTema, sessao }) {
   return (
-    <header className="flex items-end justify-between px-4 pt-6 pb-4">
+    <header
+      className="flex items-end justify-between px-5 pt-7 pb-5 sticky top-0 z-10"
+      style={{
+        background: `${c.bg}CC`,
+        backdropFilter: "blur(14px)",
+        WebkitBackdropFilter: "blur(14px)",
+        borderBottom: `1px solid ${c.line}`,
+      }}
+    >
       <div>
         <div className="text-xs uppercase tracking-widest" style={{ color: c.muted, fontFamily: MONO }}>
           {sessao ? `treino ${sessao.treino} em andamento` : "diário de treino · breno"}
         </div>
-        <h1 className="text-3xl font-bold tracking-tight leading-none mt-1">Barra</h1>
+        <h1 className="text-3xl font-bold tracking-tight leading-none mt-1.5">Barra</h1>
       </div>
       <button onClick={() => setTema(tema === "dark" ? "light" : "dark")}
-        className="p-2 rounded-full" style={{ background: c.surface2, color: c.ink }}
+        className="p-3 rounded-full" style={{ background: c.surface2, color: c.ink }}
         aria-label="Alternar tema">
         {tema === "dark" ? <Sun size={18} /> : <Moon size={18} />}
       </button>
@@ -376,8 +402,8 @@ function Selo({ c, status }) {
   if (!s) return null;
   const cor = c[s.cor] || c.muted;
   return (
-    <span className="px-2 py-0.5 rounded-full text-[10px] uppercase tracking-wide"
-      style={{ color: cor, border: `1px solid ${cor}`, fontFamily: MONO }}>{s.label}</span>
+    <span className="px-3 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wide"
+      style={{ color: cor, background: `${cor}1A`, border: `1px solid ${cor}40`, fontFamily: MONO }}>{s.label}</span>
   );
 }
 
@@ -385,11 +411,11 @@ function Selo({ c, status }) {
 
 function TelaTreinos({ c, treinos, ultimaVez, iniciar, sessao, continuar }) {
   return (
-    <div className="px-4 space-y-3">
+    <div className="px-5 pt-2 space-y-4">
       {sessao && (
         <button onClick={continuar}
-          className="w-full flex items-center justify-between px-4 py-3 rounded-2xl"
-          style={{ background: c.accent, color: c.accentInk }}>
+          className="w-full flex items-center justify-between px-5 py-4 rounded-2xl"
+          style={{ background: c.accent, color: c.accentInk, boxShadow: `0 12px 24px -12px ${c.accent}80` }}>
           <span className="font-semibold">Voltar ao treino {sessao.treino}</span>
           <ChevronRight size={20} />
         </button>
@@ -399,16 +425,16 @@ function TelaTreinos({ c, treinos, ultimaVez, iniciar, sessao, continuar }) {
         const u = ultimaVez(t.id);
         return (
           <button key={t.id} onClick={() => iniciar(t)}
-            className="w-full flex items-center gap-4 p-4 rounded-2xl text-left"
+            className="w-full flex items-center gap-4 p-5 rounded-2xl text-left"
             style={{ background: c.surface, border: `1px solid ${c.line}` }}>
-            <div className="w-14 h-14 rounded-xl flex flex-col items-center justify-center shrink-0"
-              style={{ background: c.surface2 }}>
-              <span className="text-xl font-bold" style={{ fontFamily: MONO }}>{t.id}</span>
-              <span className="text-[9px] uppercase" style={{ color: c.muted }}>{t.dia.slice(0, 3)}</span>
+            <div className="w-16 h-16 rounded-2xl flex flex-col items-center justify-center shrink-0"
+              style={{ background: `${c.accent}1A`, border: `1px solid ${c.accent}33` }}>
+              <span className="text-2xl font-extrabold" style={{ fontFamily: MONO, color: c.accent }}>{t.id}</span>
+              <span className="text-[9px] uppercase font-semibold" style={{ color: c.accent, opacity: 0.7 }}>{t.dia.slice(0, 3)}</span>
             </div>
             <div className="flex-1 min-w-0">
-              <div className="font-semibold truncate">{t.nome}</div>
-              <div className="text-sm" style={{ color: c.muted }}>
+              <div className="font-semibold truncate text-base">{t.nome}</div>
+              <div className="text-sm mt-0.5" style={{ color: c.muted }}>
                 {t.exercicios.length} exercícios · {u ? diasAtras(u) : "sem registro"}
               </div>
             </div>
@@ -457,15 +483,15 @@ function TelaSessao({ c, sessao, setSessao, treinos, series, registrar, encerrar
   };
 
   return (
-    <div className="px-4 space-y-4">
-      <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+    <div className="px-5 pt-2 space-y-5">
+      <div className="flex gap-2.5 overflow-x-auto pb-1 -mx-1 px-1">
         {treino.exercicios.map((e) => {
           const ativo = e.nome === ex.nome;
           const n = series.filter((s) => s.exercicio === e.nome && s.data.slice(0, 10) === hoje()).length;
           const completo = n >= e.series;
           return (
             <button key={e.nome} onClick={() => setSessao({ ...sessao, exercicio: e.nome })}
-              className="shrink-0 px-3 py-2 rounded-full text-sm whitespace-nowrap"
+              className="shrink-0 px-4 py-2.5 rounded-full text-sm whitespace-nowrap"
               style={{
                 background: ativo ? c.accent : c.surface, color: ativo ? c.accentInk : (completo ? c.ok : c.ink),
                 border: `1px solid ${ativo ? c.accent : (completo ? c.ok : c.line)}`,
@@ -477,53 +503,53 @@ function TelaSessao({ c, sessao, setSessao, treinos, series, registrar, encerrar
         })}
       </div>
 
-      <div className="p-4 rounded-2xl" style={{ background: c.surface, border: `1px solid ${c.line}` }}>
-        <div className="flex items-start justify-between gap-2">
+      <div className="p-6 rounded-2xl" style={{ background: c.surface, border: `1px solid ${c.line}` }}>
+        <div className="flex items-start justify-between gap-3">
           <h2 className="text-2xl font-bold leading-tight">{ex.nome}</h2>
           <Selo c={c} status={ex.status} />
         </div>
 
-        <div className="flex gap-4 mt-3 text-sm" style={{ fontFamily: MONO, color: c.muted }}>
+        <div className="flex gap-5 mt-4 text-sm" style={{ fontFamily: MONO, color: c.muted }}>
           <span><b style={{ color: c.ink }}>{ex.series}</b> séries</span>
           <span><b style={{ color: c.ink }}>{ex.reps}</b> reps</span>
           <span><b style={{ color: c.ink }}>{mmss(ex.descanso)}</b> descanso</span>
         </div>
 
-        {ex.obs && <p className="text-sm mt-3" style={{ color: c.muted }}>{ex.obs}</p>}
+        {ex.obs && <p className="text-sm mt-4" style={{ color: c.muted }}>{ex.obs}</p>}
 
-        <div className="text-sm mt-3 pt-3" style={{ color: c.muted, borderTop: `1px solid ${c.line}` }}>
+        <div className="text-sm mt-4 pt-4" style={{ color: c.muted, borderTop: `1px solid ${c.line}` }}>
           {anterior
             ? `Última vez: ${anterior.carga} kg · ${anterior.reps} reps · ${dataBR(anterior.data)}`
             : "Sem registro anterior deste exercício"}
         </div>
 
-        <div className="grid grid-cols-2 gap-3 mt-4">
+        <div className="grid grid-cols-2 gap-4 mt-5">
           <Stepper c={c} rotulo="Repetições" valor={reps} setValor={setReps} passo={1} min={0} />
           <Stepper c={c} rotulo="Carga (kg)" valor={carga} setValor={setCarga} passo={2.5} min={0} />
         </div>
 
         <input value={obs} onChange={(e) => setObs(e.target.value)}
           placeholder="Como foi a série? (opcional)"
-          className="w-full mt-3 px-3 py-2 rounded-xl text-sm outline-none"
+          className="w-full mt-4 px-4 py-3 rounded-xl text-sm outline-none"
           style={{ background: c.surface2, color: c.ink, border: `1px solid ${c.line}` }} />
 
         {erro && <div className="mt-2 text-sm" style={{ color: c.pr }}>{erro}</div>}
 
         <button onClick={enviar}
-          className="w-full mt-3 py-4 rounded-2xl font-semibold text-lg flex items-center justify-center gap-2"
-          style={{ background: c.accent, color: c.accentInk }}>
+          className="w-full mt-4 py-4 rounded-2xl font-semibold text-lg flex items-center justify-center gap-2"
+          style={{ background: c.accent, color: c.accentInk, boxShadow: `0 12px 24px -12px ${c.accent}80` }}>
           <Check size={22} /> Registrar série {feitasHoje.length + 1} de {ex.series}
         </button>
       </div>
 
       {feitasHoje.length > 0 && (
         <div>
-          <div className="text-xs uppercase tracking-widest mb-2" style={{ color: c.muted, fontFamily: MONO }}>
+          <div className="text-xs uppercase tracking-widest mb-2.5" style={{ color: c.muted, fontFamily: MONO }}>
             hoje neste exercício
           </div>
-          <div className="space-y-2">
+          <div className="space-y-2.5">
             {feitasHoje.map((s) => (
-              <div key={s.id} className="flex items-center justify-between px-4 py-3 rounded-xl"
+              <div key={s.id} className="flex items-center justify-between px-5 py-3.5 rounded-xl"
                 style={{ background: c.surface, border: `1px solid ${c.line}` }}>
                 <span className="text-sm" style={{ color: c.muted, fontFamily: MONO }}>série {s.serie}</span>
                 <span className="font-semibold" style={{ fontFamily: MONO }}>{s.carga} kg × {s.reps}</span>
@@ -533,7 +559,7 @@ function TelaSessao({ c, sessao, setSessao, treinos, series, registrar, encerrar
         </div>
       )}
 
-      <button onClick={encerrar} className="w-full py-3 rounded-2xl font-medium"
+      <button onClick={encerrar} className="w-full py-3.5 rounded-2xl font-medium"
         style={{ background: c.surface2, color: c.ink }}>
         Encerrar treino {treino.id}
       </button>
@@ -545,14 +571,14 @@ function Stepper({ c, rotulo, valor, setValor, passo, min }) {
   const muda = (d) => setValor((v) => String(Math.max(min, Number((Number(v || 0) + d).toFixed(2)))));
   return (
     <div>
-      <div className="text-xs uppercase tracking-widest mb-1" style={{ color: c.muted, fontFamily: MONO }}>{rotulo}</div>
-      <div className="flex items-center rounded-xl overflow-hidden" style={{ background: c.surface2 }}>
-        <button onClick={() => muda(-passo)} className="px-3 py-3" aria-label={`Diminuir ${rotulo}`}><Minus size={18} /></button>
+      <div className="text-xs uppercase tracking-widest mb-2" style={{ color: c.muted, fontFamily: MONO }}>{rotulo}</div>
+      <div className="flex items-center rounded-2xl overflow-hidden" style={{ background: c.surface2 }}>
+        <button onClick={() => muda(-passo)} className="px-3.5 py-3.5" aria-label={`Diminuir ${rotulo}`}><Minus size={18} /></button>
         <input value={valor} inputMode="decimal"
           onChange={(e) => setValor(e.target.value.replace(",", "."))}
-          className="w-full text-center text-2xl font-bold bg-transparent outline-none py-2"
+          className="w-full text-center text-2xl font-bold bg-transparent outline-none py-2.5"
           style={{ fontFamily: MONO, color: c.ink }} />
-        <button onClick={() => muda(passo)} className="px-3 py-3" aria-label={`Aumentar ${rotulo}`}><Plus size={18} /></button>
+        <button onClick={() => muda(passo)} className="px-3.5 py-3.5" aria-label={`Aumentar ${rotulo}`}><Plus size={18} /></button>
       </div>
     </div>
   );
@@ -586,11 +612,11 @@ function TelaHistorico({ c, series }) {
   const delta = grafico.length > 1 ? grafico.at(-1).carga - grafico[0].carga : 0;
 
   return (
-    <div className="px-4 space-y-4">
-      <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+    <div className="px-5 pt-2 space-y-5">
+      <div className="flex gap-2.5 overflow-x-auto pb-1 -mx-1 px-1">
         {exercicios.map((e) => (
           <button key={e} onClick={() => setSel(e)}
-            className="shrink-0 px-3 py-2 rounded-full text-sm whitespace-nowrap"
+            className="shrink-0 px-4 py-2.5 rounded-full text-sm whitespace-nowrap"
             style={{
               background: e === sel ? c.accent : c.surface, color: e === sel ? c.accentInk : c.ink,
               border: `1px solid ${e === sel ? c.accent : c.line}`,
@@ -598,12 +624,12 @@ function TelaHistorico({ c, series }) {
         ))}
       </div>
 
-      <div className="p-4 rounded-2xl" style={{ background: c.surface, border: `1px solid ${c.line}` }}>
-        <div className="flex items-baseline justify-between mb-3">
+      <div className="p-6 rounded-2xl" style={{ background: c.surface, border: `1px solid ${c.line}` }}>
+        <div className="flex items-baseline justify-between mb-4">
           <span className="text-xs uppercase tracking-widest" style={{ color: c.muted, fontFamily: MONO }}>
             carga máxima por sessão
           </span>
-          <span className="text-2xl font-bold" style={{ fontFamily: MONO }}>
+          <span className="text-2xl font-bold" style={{ fontFamily: MONO, color: c.accent }}>
             {grafico.length ? `${grafico.at(-1).carga} kg` : "—"}
             {delta !== 0 && (
               <span className="text-sm ml-2" style={{ color: delta > 0 ? c.ok : c.pr }}>
@@ -615,29 +641,36 @@ function TelaHistorico({ c, series }) {
         <div style={{ height: 190 }}>
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={grafico} margin={{ top: 4, right: 8, bottom: 0, left: -18 }}>
+              <defs>
+                <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={c.accent} stopOpacity={0.35} />
+                  <stop offset="100%" stopColor={c.accent} stopOpacity={0} />
+                </linearGradient>
+              </defs>
               <CartesianGrid stroke={c.grid} vertical={false} />
               <XAxis dataKey="rotulo" tick={{ fill: c.muted, fontSize: 11, fontFamily: MONO }} tickLine={false} axisLine={false} />
               <YAxis tick={{ fill: c.muted, fontSize: 11, fontFamily: MONO }} tickLine={false} axisLine={false} width={44} />
               <Tooltip
-                contentStyle={{ background: c.surface2, border: `1px solid ${c.line}`, borderRadius: 12, color: c.ink, fontFamily: MONO, fontSize: 12 }}
+                contentStyle={{ background: c.surface2, border: `1px solid ${c.line}`, borderRadius: 16, color: c.ink, fontFamily: MONO, fontSize: 12 }}
                 labelStyle={{ color: c.muted }} formatter={(v) => [`${v} kg`, "carga"]} />
               <Line type="monotone" dataKey="carga" stroke={c.accent} strokeWidth={2.5}
-                dot={{ r: 3, fill: c.accent, strokeWidth: 0 }} activeDot={{ r: 5 }} />
+                dot={{ r: 3, fill: c.accent, strokeWidth: 0 }} activeDot={{ r: 5 }}
+                fill="url(#areaGrad)" />
             </LineChart>
           </ResponsiveContainer>
         </div>
       </div>
 
       <div className="rounded-2xl overflow-hidden" style={{ background: c.surface, border: `1px solid ${c.line}` }}>
-        <div className="grid grid-cols-5 px-4 py-2 text-xs uppercase tracking-widest"
+        <div className="grid grid-cols-5 px-5 py-3 text-xs uppercase tracking-widest"
           style={{ color: c.muted, fontFamily: MONO, borderBottom: `1px solid ${c.line}` }}>
           <span className="col-span-2">data</span><span className="text-right">carga</span>
           <span className="text-right">séries</span><span className="text-right">reps</span>
         </div>
         {ultimos5.map((d) => (
-          <div key={d.data} className="grid grid-cols-5 px-4 py-3 text-sm" style={{ fontFamily: MONO }}>
+          <div key={d.data} className="grid grid-cols-5 px-5 py-3.5 text-sm" style={{ fontFamily: MONO, borderBottom: `1px solid ${c.line}` }}>
             <span className="col-span-2">{dataBR(d.data)}</span>
-            <span className="text-right font-semibold">{d.carga}</span>
+            <span className="text-right font-semibold" style={{ color: c.accent }}>{d.carga}</span>
             <span className="text-right" style={{ color: c.muted }}>{d.series}</span>
             <span className="text-right" style={{ color: c.muted }}>{d.reps}</span>
           </div>
@@ -661,18 +694,18 @@ function TelaMarcos({ c, marcos, setMarcos }) {
   const doMes = marcos.filter((m) => m.data.startsWith(iso(1).slice(0, 7)));
 
   return (
-    <div className="px-4 space-y-4">
-      <div className="p-4 rounded-2xl" style={{ background: c.surface, border: `1px solid ${c.line}` }}>
-        <div className="flex items-center justify-between mb-3">
-          <button onClick={() => setMes(new Date(mes.getFullYear(), mes.getMonth() - 1, 1))} className="p-2"><ChevronLeft size={18} /></button>
+    <div className="px-5 pt-2 space-y-5">
+      <div className="p-6 rounded-2xl" style={{ background: c.surface, border: `1px solid ${c.line}` }}>
+        <div className="flex items-center justify-between mb-4">
+          <button onClick={() => setMes(new Date(mes.getFullYear(), mes.getMonth() - 1, 1))} className="p-2.5 rounded-full" style={{ background: c.surface2 }}><ChevronLeft size={18} /></button>
           <span className="font-semibold capitalize">{nomeMes}</span>
-          <button onClick={() => setMes(new Date(mes.getFullYear(), mes.getMonth() + 1, 1))} className="p-2"><ChevronRight size={18} /></button>
+          <button onClick={() => setMes(new Date(mes.getFullYear(), mes.getMonth() + 1, 1))} className="p-2.5 rounded-full" style={{ background: c.surface2 }}><ChevronRight size={18} /></button>
         </div>
 
-        <div className="grid grid-cols-7 gap-1 text-center text-xs mb-1" style={{ color: c.muted, fontFamily: MONO }}>
+        <div className="grid grid-cols-7 gap-1 text-center text-xs mb-2" style={{ color: c.muted, fontFamily: MONO }}>
           {["D", "S", "T", "Q", "Q", "S", "S"].map((d, i) => <div key={i}>{d}</div>)}
         </div>
-        <div className="grid grid-cols-7 gap-1">
+        <div className="grid grid-cols-7 gap-1.5">
           {Array.from({ length: primeiroDia }).map((_, i) => <div key={`v${i}`} />)}
           {Array.from({ length: totalDias }).map((_, i) => {
             const dia = i + 1;
@@ -680,7 +713,7 @@ function TelaMarcos({ c, marcos, setMarcos }) {
             const cor = marco ? TIPOS_MARCO.find((t) => t.id === marco.tipo).cor : null;
             return (
               <button key={dia} onClick={() => setForm({ data: iso(dia), tipo: marco?.tipo || "pr", nota: marco?.nota || "" })}
-                className="aspect-square rounded-lg flex flex-col items-center justify-center text-sm"
+                className="aspect-square rounded-xl flex flex-col items-center justify-center text-sm"
                 style={{ background: marco ? c.surface2 : "transparent", fontFamily: MONO }}>
                 <span style={{ color: marco ? c.ink : c.muted }}>{dia}</span>
                 {cor && <span className="w-1.5 h-1.5 rounded-full mt-0.5" style={{ background: cor }} />}
@@ -690,20 +723,23 @@ function TelaMarcos({ c, marcos, setMarcos }) {
         </div>
       </div>
 
-      <div className="flex gap-3 text-xs" style={{ color: c.muted }}>
+      <div className="flex gap-4 text-xs px-1" style={{ color: c.muted }}>
         {TIPOS_MARCO.map((t) => (
-          <span key={t.id} className="flex items-center gap-1">
+          <span key={t.id} className="flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full" style={{ background: t.cor }} />{t.label}
           </span>
         ))}
       </div>
 
       {doMes.length > 0 && (
-        <div className="space-y-2">
+        <div className="space-y-2.5">
           {doMes.sort((a, b) => a.data.localeCompare(b.data)).map((m) => (
-            <div key={m.data} className="flex items-center gap-3 px-4 py-3 rounded-xl"
+            <div key={m.data} className="flex items-center gap-4 px-5 py-4 rounded-2xl"
               style={{ background: c.surface, border: `1px solid ${c.line}` }}>
-              <Flag size={16} style={{ color: TIPOS_MARCO.find((t) => t.id === m.tipo).cor }} />
+              <div className="w-11 h-11 rounded-full flex items-center justify-center shrink-0"
+                style={{ background: `${TIPOS_MARCO.find((t) => t.id === m.tipo).cor}22` }}>
+                <Flag size={16} style={{ color: TIPOS_MARCO.find((t) => t.id === m.tipo).cor }} />
+              </div>
               <div className="flex-1 min-w-0">
                 <div className="text-sm font-medium">{TIPOS_MARCO.find((t) => t.id === m.tipo).label}</div>
                 {m.nota && <div className="text-sm" style={{ color: c.muted }}>{m.nota}</div>}
@@ -718,29 +754,29 @@ function TelaMarcos({ c, marcos, setMarcos }) {
       )}
 
       {form && (
-        <div className="p-4 rounded-2xl space-y-3" style={{ background: c.surface, border: `1px solid ${c.accent}` }}>
+        <div className="p-5 rounded-2xl space-y-3.5" style={{ background: c.surface, border: `1px solid ${c.accent}` }}>
           <div className="font-semibold">Marcar {dataBR(form.data)}</div>
           <div className="flex gap-2">
             {TIPOS_MARCO.map((t) => (
               <button key={t.id} onClick={() => setForm({ ...form, tipo: t.id })}
-                className="flex-1 py-2 rounded-xl text-sm"
-                style={{ background: form.tipo === t.id ? t.cor : c.surface2, color: form.tipo === t.id ? "#fff" : c.ink }}>
+                className="flex-1 py-2.5 rounded-xl text-sm font-semibold"
+                style={{ background: form.tipo === t.id ? t.cor : c.surface2, color: form.tipo === t.id ? "#0F172A" : c.ink }}>
                 {t.label}
               </button>
             ))}
           </div>
           <input value={form.nota} onChange={(e) => setForm({ ...form, nota: e.target.value })}
             placeholder="Nota (ex: puxada frontal 55 kg)"
-            className="w-full px-3 py-2 rounded-xl text-sm outline-none"
+            className="w-full px-4 py-3 rounded-xl text-sm outline-none"
             style={{ background: c.surface2, color: c.ink, border: `1px solid ${c.line}` }} />
           <div className="flex gap-2">
-            <button onClick={() => setForm(null)} className="flex-1 py-3 rounded-xl" style={{ background: c.surface2 }}>Cancelar</button>
+            <button onClick={() => setForm(null)} className="flex-1 py-3.5 rounded-xl" style={{ background: c.surface2 }}>Cancelar</button>
             <button
               onClick={() => {
                 setMarcos((ms) => [...ms.filter((m) => m.data !== form.data), { data: form.data, tipo: form.tipo, nota: form.nota }]);
                 setForm(null);
               }}
-              className="flex-1 py-3 rounded-xl font-semibold" style={{ background: c.accent, color: c.accentInk }}>
+              className="flex-1 py-3.5 rounded-xl font-semibold" style={{ background: c.accent, color: c.accentInk }}>
               Salvar marco
             </button>
           </div>
@@ -820,18 +856,18 @@ function TelaMais({ c, series, setSeries, descanso, setDescanso }) {
   };
 
   return (
-    <div className="px-4 space-y-4">
-      <div className="p-4 rounded-2xl" style={{ background: c.surface, border: `1px solid ${c.line}` }}>
-        <div className="text-xs uppercase tracking-widest mb-3" style={{ color: c.muted, fontFamily: MONO }}>
+    <div className="px-5 pt-2 space-y-5">
+      <div className="p-6 rounded-2xl" style={{ background: c.surface, border: `1px solid ${c.line}` }}>
+        <div className="text-xs uppercase tracking-widest mb-4" style={{ color: c.muted, fontFamily: MONO }}>
           calculadora de anilhas · barra livre
         </div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-4">
           <Stepper c={c} rotulo="Peso alvo" valor={alvo} setValor={setAlvo} passo={2.5} min={0} />
           <div>
-            <div className="text-xs uppercase tracking-widest mb-1" style={{ color: c.muted, fontFamily: MONO }}>Barra</div>
-            <div className="flex gap-1">
+            <div className="text-xs uppercase tracking-widest mb-2" style={{ color: c.muted, fontFamily: MONO }}>Barra</div>
+            <div className="flex gap-1.5">
               {[20, 15, 10].map((b) => (
-                <button key={b} onClick={() => setBarra(b)} className="flex-1 py-3 rounded-xl text-sm font-semibold"
+                <button key={b} onClick={() => setBarra(b)} className="flex-1 py-3.5 rounded-xl text-sm font-semibold"
                   style={{ background: barra === b ? c.accent : c.surface2, color: barra === b ? c.accentInk : c.ink, fontFamily: MONO }}>
                   {b}
                 </button>
@@ -840,7 +876,7 @@ function TelaMais({ c, series, setSeries, descanso, setDescanso }) {
           </div>
         </div>
 
-        <div className="mt-4">
+        <div className="mt-5">
           {anilhas.erro ? (
             <div className="text-sm" style={{ color: c.pr }}>{anilhas.erro}</div>
           ) : (
@@ -853,7 +889,7 @@ function TelaMais({ c, series, setSeries, descanso, setDescanso }) {
                 ))}
                 <div className="h-4 w-2 rounded" style={{ background: c.muted }} />
               </div>
-              <div className="text-sm mt-2" style={{ fontFamily: MONO }}>
+              <div className="text-sm mt-3" style={{ fontFamily: MONO }}>
                 {anilhas.usadas.length ? `Por lado: ${anilhas.usadas.join(" + ")} kg` : "Só a barra."}
               </div>
               {anilhas.sobra > 0.01 && (
@@ -864,30 +900,30 @@ function TelaMais({ c, series, setSeries, descanso, setDescanso }) {
             </>
           )}
         </div>
-        <p className="text-xs mt-3" style={{ color: c.muted }}>
+        <p className="text-xs mt-4" style={{ color: c.muted }}>
           Isto é para barra livre. Na polia e na extensora, cada anilha da pilha vale 5 kg.
         </p>
       </div>
 
-      <div className="p-4 rounded-2xl" style={{ background: c.surface, border: `1px solid ${c.line}` }}>
-        <div className="text-xs uppercase tracking-widest mb-3" style={{ color: c.muted, fontFamily: MONO }}>
+      <div className="p-6 rounded-2xl" style={{ background: c.surface, border: `1px solid ${c.line}` }}>
+        <div className="text-xs uppercase tracking-widest mb-4" style={{ color: c.muted, fontFamily: MONO }}>
           descanso padrão
         </div>
         <div className="flex gap-2">
           {[60, 90, 120, 180].map((s) => (
-            <button key={s} onClick={() => setDescanso(s)} className="flex-1 py-3 rounded-xl font-semibold"
+            <button key={s} onClick={() => setDescanso(s)} className="flex-1 py-3.5 rounded-xl font-semibold"
               style={{ background: descanso === s ? c.accent : c.surface2, color: descanso === s ? c.accentInk : c.ink, fontFamily: MONO }}>
               {mmss(s)}
             </button>
           ))}
         </div>
-        <p className="text-xs mt-2" style={{ color: c.muted }}>
+        <p className="text-xs mt-3" style={{ color: c.muted }}>
           Cada exercício já usa o próprio descanso do programa; isto vale para o resto.
         </p>
       </div>
 
-      <div className="p-4 rounded-2xl" style={{ background: c.surface, border: `1px solid ${c.line}` }}>
-        <div className="text-xs uppercase tracking-widest mb-2" style={{ color: c.muted, fontFamily: MONO }}>
+      <div className="p-6 rounded-2xl" style={{ background: c.surface, border: `1px solid ${c.line}` }}>
+        <div className="text-xs uppercase tracking-widest mb-3" style={{ color: c.muted, fontFamily: MONO }}>
           aba registros da planilha
         </div>
         <div className="text-sm" style={{ color: c.muted }}>
@@ -895,24 +931,24 @@ function TelaMais({ c, series, setSeries, descanso, setDescanso }) {
         </div>
 
         <button onClick={copiarPendentes} disabled={enviando}
-          className="w-full mt-3 py-3 rounded-xl font-semibold flex items-center justify-center gap-2"
+          className="w-full mt-4 py-3.5 rounded-xl font-semibold flex items-center justify-center gap-2"
           style={{ background: c.accent, color: c.accentInk, opacity: enviando ? 0.6 : 1 }}>
           <Upload size={18} /> Copiar as {pendentes.length} novas
         </button>
 
-        {statusEnvio && <div className="text-sm mt-2" style={{ color: c.muted }}>{statusEnvio}</div>}
+        {statusEnvio && <div className="text-sm mt-2.5" style={{ color: c.muted }}>{statusEnvio}</div>}
 
-        <div className="flex gap-2 mt-2">
-          <button onClick={copiarTSV} className="flex-1 py-3 rounded-xl font-medium flex items-center justify-center gap-2"
+        <div className="flex gap-2.5 mt-3">
+          <button onClick={copiarTSV} className="flex-1 py-3.5 rounded-xl font-medium flex items-center justify-center gap-2"
             style={{ background: c.surface2, color: c.ink }}>
             <Copy size={18} /> {copiado ? "Copiado" : "Copiar tudo"}
           </button>
-          <button onClick={baixarCSV} className="px-4 rounded-xl" style={{ background: c.surface2 }} aria-label="Baixar CSV">
+          <button onClick={baixarCSV} className="px-5 rounded-xl" style={{ background: c.surface2 }} aria-label="Baixar CSV">
             <Download size={18} />
           </button>
         </div>
 
-        <p className="text-xs mt-3" style={{ color: c.muted }}>
+        <p className="text-xs mt-4" style={{ color: c.muted }}>
           O envio automático não funciona com o app rodando dentro do Claude.ai — o sandbox bloqueia
           chamadas para fora. Colar leva dois toques e o resultado é o mesmo.
         </p>
@@ -927,19 +963,23 @@ function BarraTimer({ c, restante, total, rodando, alternar, mais, fechar }) {
   const pct = total ? Math.min(100, (restante / total) * 100) : 0;
   const acabou = restante === 0;
   return (
-    <div className="fixed bottom-16 left-0 right-0 z-20">
-      <div className="max-w-md mx-auto px-4">
-        <div className="rounded-2xl overflow-hidden" style={{ background: c.surface, border: `1px solid ${acabou ? c.pr : c.line}` }}>
+    <div className="fixed bottom-20 left-0 right-0 z-20">
+      <div className="max-w-md mx-auto px-5">
+        <div className="rounded-2xl overflow-hidden"
+          style={{
+            background: `${c.surface}E6`, backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)",
+            border: `1px solid ${acabou ? c.pr : c.line}`, boxShadow: "0 16px 32px -16px rgba(0,0,0,0.5)",
+          }}>
           <div className="h-1" style={{ background: c.surface2 }}>
             <div className="h-full transition-all duration-1000" style={{ width: `${pct}%`, background: acabou ? c.pr : c.accent }} />
           </div>
-          <div className="flex items-center gap-3 px-4 py-3">
+          <div className="flex items-center gap-3 px-5 py-3.5">
             <Timer size={20} style={{ color: acabou ? c.pr : c.accent }} />
             <div className="text-3xl font-bold tabular-nums" style={{ fontFamily: MONO }}>{mmss(restante)}</div>
             <div className="flex-1 text-sm" style={{ color: c.muted }}>{acabou ? "Descanso acabou" : "descanso"}</div>
-            <button onClick={mais} className="px-3 py-2 rounded-xl text-sm font-semibold"
+            <button onClick={mais} className="px-3.5 py-2.5 rounded-xl text-sm font-semibold"
               style={{ background: c.surface2, fontFamily: MONO }}>+15s</button>
-            <button onClick={acabou ? fechar : alternar} className="px-3 py-2 rounded-xl text-sm font-semibold"
+            <button onClick={acabou ? fechar : alternar} className="px-3.5 py-2.5 rounded-xl text-sm font-semibold"
               style={{ background: c.surface2 }}>
               {acabou ? "Fechar" : rodando ? "Pausar" : "Seguir"}
             </button>
@@ -961,16 +1001,20 @@ function Abas({ c, aba, setAba }) {
     { id: "mais", icone: Calculator, label: "Mais" },
   ];
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-30" style={{ background: c.surface, borderTop: `1px solid ${c.line}` }}>
+    <nav className="fixed bottom-0 left-0 right-0 z-30"
+      style={{
+        background: `${c.surface}E6`, backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)",
+        borderTop: `1px solid ${c.line}`,
+      }}>
       <div className="max-w-md mx-auto grid grid-cols-5">
         {itens.map((i) => {
           const Icone = i.icone;
           const ativo = aba === i.id;
           return (
-            <button key={i.id} onClick={() => setAba(i.id)} className="flex flex-col items-center gap-0.5 py-2"
+            <button key={i.id} onClick={() => setAba(i.id)} className="flex flex-col items-center gap-1 py-2.5"
               style={{ color: ativo ? c.accent : c.muted }}>
               <Icone size={20} />
-              <span className="text-[10px]">{i.label}</span>
+              <span className="text-[10px] font-medium">{i.label}</span>
             </button>
           );
         })}
@@ -984,9 +1028,10 @@ function Vazio({ c, texto, acao, onAcao }) {
     <div className="px-8 py-16 text-center">
       <p style={{ color: c.muted }}>{texto}</p>
       {acao && (
-        <button onClick={onAcao} className="mt-4 px-5 py-3 rounded-xl font-semibold"
+        <button onClick={onAcao} className="mt-4 px-6 py-3.5 rounded-2xl font-semibold"
           style={{ background: c.accent, color: c.accentInk }}>{acao}</button>
       )}
     </div>
   );
 }
+redesign dark mode premium
