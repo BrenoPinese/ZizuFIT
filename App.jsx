@@ -4,7 +4,8 @@ import {
 } from "recharts";
 import {
   Dumbbell, History, CalendarDays, Calculator, Play, Check, Plus, Minus,
-  ChevronLeft, ChevronRight, Timer, Sun, Moon, Download, Copy, X, Flag, Upload,
+  ChevronLeft, ChevronRight, ChevronDown, Timer, Sun, Moon, Download, Copy, X, Flag,
+  Upload, Search, Bell, ArrowUp, List,
 } from "lucide-react";
 
 /* ---------------------------------------------------------------- tokens
@@ -13,8 +14,8 @@ import {
    glassmorphism sutil em overlays (header e barra de descanso).      */
 
 const PLATE_COLORS = {
-  25: "#D42D2D", 20: "#1E5BC6", 15: "#E8B417", 10: "#2E9E5B",
-  5: "#E8E8E8", 2.5: "#111318", 1.25: "#8A929E",
+  25: "#D42D2D", 20: "#3B82F6", 15: "#60A5FA", 10: "#E5E7EB",
+  5: "#94A3B8", 2.5: "#334155", 1.25: "#1E293B",
 };
 
 const THEMES = {
@@ -33,10 +34,13 @@ const THEMES = {
 const MONO = 'ui-monospace, "SF Mono", Menlo, monospace';
 const SANS = '-apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif';
 const STORE_KEY = "treino:v2";
+const NOME_USUARIO = "Breno";
 
 /* --------------------------------------------------- programa do Breno
    Importado da conversa "Academia - Certo". Anilha de máquina = 5 kg,
-   por isso as cargas de polia/extensora aparecem já convertidas em kg.  */
+   por isso as cargas de polia/extensora aparecem já convertidas em kg.
+   `tipo` existe só para o filtro do dashboard — todo o programa é força,
+   o cardio vem do handebol (ver memória do projeto).                   */
 
 const STATUS = {
   subir: { label: "pode subir", cor: "ok" },
@@ -47,7 +51,7 @@ const STATUS = {
 
 const TREINOS_PADRAO = [
   {
-    id: "A", nome: "Costas · Bíceps · Core", dia: "Segunda",
+    id: "A", nome: "Costas · Bíceps · Core", dia: "Segunda", tipo: "forca",
     aviso: "Handebol 17h30 — treino de superior antes da quadra",
     exercicios: [
       { nome: "Puxada Frontal na Polia", series: 4, reps: "8-10", descanso: 90, alvo: 55, status: "manter", obs: "11 anilhas de 5 kg. Só sobe quando fechar 4×10 limpo, sem embalo." },
@@ -59,7 +63,7 @@ const TREINOS_PADRAO = [
     ],
   },
   {
-    id: "B", nome: "Peito · Tríceps · Ombros", dia: "Terça",
+    id: "B", nome: "Peito · Tríceps · Ombros", dia: "Terça", tipo: "forca",
     aviso: "Handebol 20h30 — evite falha total no supino",
     exercicios: [
       { nome: "Supino Reto com Barra", series: 4, reps: "8-10", descanso: 120, alvo: 25, status: "atencao", obs: "Por lado. Falhou reps em duas sessões seguidas — reduzir para 22,5 kg e reconstruir." },
@@ -71,7 +75,7 @@ const TREINOS_PADRAO = [
     ],
   },
   {
-    id: "AT", nome: "Descanso ativo · prevenção", dia: "Quarta",
+    id: "AT", nome: "Descanso ativo · prevenção", dia: "Quarta", tipo: "flexibilidade",
     aviso: "Handebol 20h30 — nada que gere fadiga",
     exercicios: [
       { nome: "Rotação Externa de Ombro", series: 3, reps: "15-20", descanso: 30, alvo: 2, status: "novo", obs: "Protocolo Oslo (Andersson et al., 2017) para o ombro de arremesso. Carga leve, foco em controle." },
@@ -80,7 +84,7 @@ const TREINOS_PADRAO = [
     ],
   },
   {
-    id: "C", nome: "Ombros · Trapézio · Core", dia: "Quinta",
+    id: "C", nome: "Ombros · Trapézio · Core", dia: "Quinta", tipo: "forca",
     aviso: "Sem handebol — dia bom para finisher de HIIT",
     exercicios: [
       { nome: "Elevação Lateral com Halteres", series: 4, reps: "12-15", descanso: 60, alvo: 9, status: "subir", obs: "Por halter. Sobe até a linha do ombro, sem encolher o trapézio." },
@@ -91,7 +95,7 @@ const TREINOS_PADRAO = [
     ],
   },
   {
-    id: "D", nome: "Pernas completo", dia: "Sexta",
+    id: "D", nome: "Pernas completo", dia: "Sexta", tipo: "forca",
     aviso: "Dia mais longe do handebol — pode pesar",
     exercicios: [
       { nome: "Agachamento na Máquina/Smith", series: 4, reps: "8-10", descanso: 120, alvo: 40, status: "manter", obs: "Por lado. Profundidade confortável, joelho na direção do pé." },
@@ -159,6 +163,13 @@ const TIPOS_MARCO = [
   { id: "pr", label: "PR", cor: "#FB7185" },
 ];
 
+const FILTROS_DASHBOARD = [
+  { id: "todos", label: "Todos" },
+  { id: "forca", label: "Força" },
+  { id: "cardio", label: "Cardio" },
+  { id: "flexibilidade", label: "Flexibilidade" },
+];
+
 /* ------------------------------------------------------------- utilidades */
 
 const hoje = () => new Date().toISOString().slice(0, 10);
@@ -222,6 +233,85 @@ function storageSet(key, value) {
   } catch {
     return null;
   }
+}
+
+/* ------------------------------------------------------------------ */
+/* Componentes visuais reutilizáveis                                   */
+/* ------------------------------------------------------------------ */
+
+function ProgressRing({ c, percent, size = 84, stroke = 8 }) {
+  const r = (size - stroke) / 2;
+  const circ = 2 * Math.PI * r;
+  const offset = circ - (Math.min(100, percent) / 100) * circ;
+  return (
+    <div className="relative shrink-0" style={{ width: size, height: size }}>
+      <svg width={size} height={size} className="-rotate-90">
+        <circle cx={size / 2} cy={size / 2} r={r} stroke={c.surface2} strokeWidth={stroke} fill="none" />
+        <circle cx={size / 2} cy={size / 2} r={r} stroke={c.accent} strokeWidth={stroke} fill="none"
+          strokeLinecap="round" strokeDasharray={circ} strokeDashoffset={offset}
+          style={{ transition: "stroke-dashoffset .6s ease" }} />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className="text-lg font-bold" style={{ color: c.ink }}>{Math.round(percent)}%</span>
+        <span className="text-[9px] font-semibold uppercase tracking-wide" style={{ color: c.muted }}>Meta</span>
+      </div>
+    </div>
+  );
+}
+
+function StreakDots({ c, total = 7, active = 0 }) {
+  return (
+    <div className="flex items-center gap-1.5">
+      {Array.from({ length: total }).map((_, i) => (
+        <React.Fragment key={i}>
+          <div className="w-2.5 h-2.5 rounded-full" style={{ background: i < active ? c.accent : c.surface2 }} />
+          {i < total - 1 && <div className="w-3 h-[2px]" style={{ background: i < active - 1 ? c.accent : c.surface2 }} />}
+        </React.Fragment>
+      ))}
+    </div>
+  );
+}
+
+function Selo({ c, status }) {
+  const s = STATUS[status];
+  if (!s) return null;
+  const cor = c[s.cor] || c.muted;
+  return (
+    <span className="shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wide"
+      style={{ color: cor, background: `${cor}1A`, border: `1px solid ${cor}40` }}>
+      {status === "subir" && <ArrowUp size={11} />}
+      {s.label}
+    </span>
+  );
+}
+
+function Stepper({ c, rotulo, valor, setValor, passo, min }) {
+  const muda = (d) => setValor((v) => String(Math.max(min, Number((Number(v || 0) + d).toFixed(2)))));
+  return (
+    <div>
+      <div className="text-xs uppercase tracking-widest mb-2" style={{ color: c.muted, fontFamily: MONO }}>{rotulo}</div>
+      <div className="flex items-center rounded-2xl overflow-hidden" style={{ background: c.surface2 }}>
+        <button onClick={() => muda(-passo)} className="px-3.5 py-3.5" aria-label={`Diminuir ${rotulo}`}><Minus size={18} /></button>
+        <input value={valor} inputMode="decimal"
+          onChange={(e) => setValor(e.target.value.replace(",", "."))}
+          className="w-full text-center text-2xl font-bold bg-transparent outline-none py-2.5"
+          style={{ fontFamily: MONO, color: c.ink }} />
+        <button onClick={() => muda(passo)} className="px-3.5 py-3.5" aria-label={`Aumentar ${rotulo}`}><Plus size={18} /></button>
+      </div>
+    </div>
+  );
+}
+
+function Vazio({ c, texto, acao, onAcao }) {
+  return (
+    <div className="px-8 py-16 text-center">
+      <p style={{ color: c.muted }}>{texto}</p>
+      {acao && (
+        <button onClick={onAcao} className="mt-4 px-6 py-3.5 rounded-2xl font-semibold"
+          style={{ background: c.accent, color: c.accentInk }}>{acao}</button>
+      )}
+    </div>
+  );
 }
 
 /* ---------------------------------------------------------------- app */
@@ -318,6 +408,26 @@ export default function AppTreino() {
     return ds.length ? ds.sort().at(-1) : null;
   };
 
+  /* progresso semanal + sequência de dias — usados no card do dashboard */
+  const diasUnicos = useMemo(() => [...new Set(series.map((s) => s.data.slice(0, 10)))].sort(), [series]);
+  const treinosEstaSemana = useMemo(() => {
+    let n = 0;
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(hoje()); d.setDate(d.getDate() - i);
+      if (diasUnicos.includes(d.toISOString().slice(0, 10))) n++;
+    }
+    return n;
+  }, [diasUnicos]);
+  const streak = useMemo(() => {
+    let s = 0;
+    for (let i = 0; i < 14; i++) {
+      const d = new Date(hoje()); d.setDate(d.getDate() - i);
+      if (diasUnicos.includes(d.toISOString().slice(0, 10))) s++;
+      else break;
+    }
+    return s;
+  }, [diasUnicos]);
+
   if (carregando) {
     return (
       <div className="flex items-center justify-center h-96"
@@ -330,14 +440,15 @@ export default function AppTreino() {
   return (
     <div style={{ background: c.bg, color: c.ink, fontFamily: SANS, minHeight: "100vh" }}>
       <div className="max-w-md mx-auto pb-40">
-        <Topo c={c} tema={tema} setTema={setTema} sessao={sessao} />
+        <BarraSuperior c={c} tema={tema} setTema={setTema} sessao={sessao} aba={aba} />
 
         {aviso && (
-          <div className="mx-4 mb-3 px-4 py-3 rounded-2xl text-sm" style={{ background: c.surface2 }}>{aviso}</div>
+          <div className="mx-5 mt-4 mb-1 px-4 py-3 rounded-2xl text-sm" style={{ background: c.surface2 }}>{aviso}</div>
         )}
 
         {aba === "treinos" && (
           <TelaTreinos c={c} treinos={treinos} ultimaVez={ultimaVez} sessao={sessao}
+            treinosEstaSemana={treinosEstaSemana} streak={streak}
             iniciar={(t) => { setSessao({ treino: t.id, exercicio: t.exercicios[0].nome }); setAba("sessao"); }}
             continuar={() => setAba("sessao")} />
         )}
@@ -369,49 +480,109 @@ export default function AppTreino() {
   );
 }
 
-/* ---------------------------------------------------------------- topo */
+/* ------------------------------------------------------- barra superior
+   Fina e fixa em todas as telas: nome do app + status de sessão ativa
+   (se houver) + alternância de tema. Cada aba renderiza seu próprio
+   cabeçalho de conteúdo logo abaixo (saudação, título, etc).           */
 
-function Topo({ c, tema, setTema, sessao }) {
+function BarraSuperior({ c, tema, setTema, sessao, aba }) {
+  const TITULOS = { treinos: null, sessao: "Sessão", historico: "Histórico", marcos: "Marcos", mais: "Mais" };
   return (
     <header
-      className="flex items-end justify-between px-5 pt-7 pb-5 sticky top-0 z-10"
+      className="flex items-center justify-between px-5 py-4 sticky top-0 z-10"
       style={{
-        background: `${c.bg}CC`,
-        backdropFilter: "blur(14px)",
-        WebkitBackdropFilter: "blur(14px)",
+        background: `${c.bg}CC`, backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)",
         borderBottom: `1px solid ${c.line}`,
       }}
     >
-      <div>
-        <div className="text-xs uppercase tracking-widest" style={{ color: c.muted, fontFamily: MONO }}>
-          {sessao ? `treino ${sessao.treino} em andamento` : "diário de treino · breno"}
-        </div>
-        <h1 className="text-3xl font-bold tracking-tight leading-none mt-1.5">Barra</h1>
+      <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest" style={{ color: c.muted, fontFamily: MONO }}>
+        <span style={{ color: c.accent }}>●</span>
+        {sessao ? `Treino ${sessao.treino} em andamento` : (TITULOS[aba] || "Barra")}
       </div>
       <button onClick={() => setTema(tema === "dark" ? "light" : "dark")}
-        className="p-3 rounded-full" style={{ background: c.surface2, color: c.ink }}
+        className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: c.surface2, color: c.ink }}
         aria-label="Alternar tema">
-        {tema === "dark" ? <Sun size={18} /> : <Moon size={18} />}
+        {tema === "dark" ? <Sun size={16} /> : <Moon size={16} />}
       </button>
     </header>
   );
 }
 
-function Selo({ c, status }) {
-  const s = STATUS[status];
-  if (!s) return null;
-  const cor = c[s.cor] || c.muted;
+/* ------------------------------------------------------------ tela 1
+   Dashboard — saudação + progresso semanal + busca + filtros + lista   */
+
+function WorkoutCard({ c, t, ultima, onStart }) {
+  const semRegistro = !ultima;
   return (
-    <span className="px-3 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wide"
-      style={{ color: cor, background: `${cor}1A`, border: `1px solid ${cor}40`, fontFamily: MONO }}>{s.label}</span>
+    <div className="w-full flex items-center gap-4 p-5 rounded-2xl text-left"
+      style={{ background: c.surface, border: `1px solid ${c.line}` }}>
+      <div className="w-16 h-16 rounded-2xl flex flex-col items-center justify-center shrink-0"
+        style={{ background: `${c.accent}1A`, border: `1px solid ${c.accent}33` }}>
+        <span className="text-2xl font-extrabold" style={{ fontFamily: MONO, color: c.accent }}>{t.id}</span>
+        <span className="text-[9px] uppercase font-semibold" style={{ color: c.accent, opacity: 0.7 }}>{t.dia.slice(0, 3)}</span>
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="font-semibold truncate text-base">{t.nome}</div>
+        <div className="text-sm mt-0.5" style={{ color: c.muted }}>
+          {t.exercicios.length} exercícios · {semRegistro ? "sem registro" : diasAtras(ultima)}
+        </div>
+      </div>
+      <button onClick={onStart}
+        className="shrink-0 flex items-center gap-1.5 px-5 py-3 rounded-xl font-semibold text-sm"
+        style={{ background: c.accent, color: c.accentInk, boxShadow: `0 10px 20px -10px ${c.accent}90` }}>
+        <Play size={14} fill="currentColor" /> Iniciar
+      </button>
+    </div>
   );
 }
 
-/* ------------------------------------------------------------ tela 1 */
+function TelaTreinos({ c, treinos, ultimaVez, iniciar, sessao, continuar, treinosEstaSemana, streak }) {
+  const [busca, setBusca] = useState("");
+  const [filtro, setFiltro] = useState("todos");
 
-function TelaTreinos({ c, treinos, ultimaVez, iniciar, sessao, continuar }) {
+  const filtrados = useMemo(() => {
+    const termo = chave(busca);
+    return treinos.filter((t) => {
+      const passaFiltro = filtro === "todos" || t.tipo === filtro;
+      const passaBusca = !termo || chave(t.nome).includes(termo) || t.exercicios.some((e) => chave(e.nome).includes(termo));
+      return passaFiltro && passaBusca;
+    });
+  }, [treinos, busca, filtro]);
+
   return (
-    <div className="px-5 pt-2 space-y-4">
+    <div className="px-5 pt-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 rounded-full flex items-center justify-center font-bold text-white text-lg shrink-0"
+            style={{ background: `linear-gradient(135deg, ${c.accent}, #1E3A8A)` }}>
+            {NOME_USUARIO[0]}
+          </div>
+          <div>
+            <p className="text-xs" style={{ color: c.muted }}>Bem-vindo de volta</p>
+            <h1 className="text-xl font-bold leading-tight">Olá, {NOME_USUARIO}</h1>
+          </div>
+        </div>
+        <button className="w-11 h-11 rounded-full flex items-center justify-center" style={{ background: c.surface2, color: c.ink }} aria-label="Notificações">
+          <Bell size={18} />
+        </button>
+      </div>
+
+      <div className="p-5 rounded-2xl flex items-center gap-4" style={{ background: c.surface, border: `1px solid ${c.line}` }}>
+        <div className="flex-1">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-sm font-semibold" style={{ color: c.ink }}>Progresso semanal</p>
+            <span className="text-xs font-bold px-2.5 py-1 rounded-full"
+              style={{ color: c.accent, background: `${c.accent}1A` }}>{treinosEstaSemana}/{treinos.length}</span>
+          </div>
+          <StreakDots c={c} total={7} active={Math.min(streak, 7)} />
+          <p className="text-xs mt-3 font-medium" style={{ color: c.muted }}>
+            {streak > 0 ? `Sequência de ${streak} dia${streak > 1 ? "s" : ""}` : "Comece hoje sua sequência"}
+          </p>
+        </div>
+        <div className="w-px self-stretch" style={{ background: c.line }} />
+        <ProgressRing c={c} percent={(treinosEstaSemana / treinos.length) * 100} />
+      </div>
+
       {sessao && (
         <button onClick={continuar}
           className="w-full flex items-center justify-between px-5 py-4 rounded-2xl"
@@ -421,27 +592,36 @@ function TelaTreinos({ c, treinos, ultimaVez, iniciar, sessao, continuar }) {
         </button>
       )}
 
-      {treinos.map((t) => {
-        const u = ultimaVez(t.id);
-        return (
-          <button key={t.id} onClick={() => iniciar(t)}
-            className="w-full flex items-center gap-4 p-5 rounded-2xl text-left"
-            style={{ background: c.surface, border: `1px solid ${c.line}` }}>
-            <div className="w-16 h-16 rounded-2xl flex flex-col items-center justify-center shrink-0"
-              style={{ background: `${c.accent}1A`, border: `1px solid ${c.accent}33` }}>
-              <span className="text-2xl font-extrabold" style={{ fontFamily: MONO, color: c.accent }}>{t.id}</span>
-              <span className="text-[9px] uppercase font-semibold" style={{ color: c.accent, opacity: 0.7 }}>{t.dia.slice(0, 3)}</span>
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="font-semibold truncate text-base">{t.nome}</div>
-              <div className="text-sm mt-0.5" style={{ color: c.muted }}>
-                {t.exercicios.length} exercícios · {u ? diasAtras(u) : "sem registro"}
-              </div>
-            </div>
-            <Play size={20} style={{ color: c.accent }} />
-          </button>
-        );
-      })}
+      <div className="relative">
+        <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2" style={{ color: c.muted }} />
+        <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar treinos"
+          className="w-full py-3.5 pl-12 pr-4 rounded-2xl text-sm outline-none"
+          style={{ background: c.surface, border: `1px solid ${c.line}`, color: c.ink }} />
+      </div>
+
+      <div className="flex gap-2.5 overflow-x-auto pb-1 -mx-1 px-1">
+        {FILTROS_DASHBOARD.map((f) => (
+          <button key={f.id} onClick={() => setFiltro(f.id)}
+            className="shrink-0 px-4 py-2.5 rounded-full text-sm font-medium whitespace-nowrap"
+            style={{
+              background: filtro === f.id ? c.accent : c.surface, color: filtro === f.id ? c.accentInk : c.ink,
+              border: `1px solid ${filtro === f.id ? c.accent : c.line}`,
+            }}>{f.label}</button>
+        ))}
+      </div>
+
+      <div className="flex flex-col gap-4">
+        {filtrados.length === 0 && (
+          <Vazio c={c} texto={
+            filtro !== "todos" && filtro !== "flexibilidade"
+              ? "Nenhum treino desse tipo. O programa é focado em força — o cardio vem do handebol."
+              : "Nenhum treino encontrado."
+          } />
+        )}
+        {filtrados.map((t) => (
+          <WorkoutCard key={t.id} c={c} t={t} ultima={ultimaVez(t.id)} onStart={() => iniciar(t)} />
+        ))}
+      </div>
     </div>
   );
 }
@@ -457,6 +637,13 @@ function TelaSessao({ c, sessao, setSessao, treinos, series, registrar, encerrar
   const [erro, setErro] = useState("");
 
   const feitasHoje = series.filter((s) => s.exercicio === ex.nome && s.data.slice(0, 10) === hoje());
+
+  const totalSeriesPrescrito = treino.exercicios.reduce((a, e) => a + e.series, 0);
+  const totalSeriesFeitas = treino.exercicios.reduce((a, e) => {
+    const n = series.filter((s) => s.exercicio === e.nome && s.data.slice(0, 10) === hoje()).length;
+    return a + Math.min(n, e.series);
+  }, 0);
+  const progressoSessao = totalSeriesPrescrito ? Math.round((totalSeriesFeitas / totalSeriesPrescrito) * 100) : 0;
 
   const anterior = useMemo(() => {
     const antigas = series.filter((s) => s.exercicio === ex.nome && s.data.slice(0, 10) !== hoje());
@@ -483,7 +670,17 @@ function TelaSessao({ c, sessao, setSessao, treinos, series, registrar, encerrar
   };
 
   return (
-    <div className="px-5 pt-2 space-y-5">
+    <div className="px-5 pt-6 space-y-5">
+      <div>
+        <div className="flex items-center justify-between mb-2.5">
+          <p className="text-sm font-bold" style={{ color: c.ink }}>Treino {treino.id} · {treino.nome}</p>
+          <span className="text-xs font-bold" style={{ color: c.accent, fontFamily: MONO }}>{progressoSessao}%</span>
+        </div>
+        <div className="h-2 rounded-full overflow-hidden" style={{ background: c.surface2 }}>
+          <div className="h-full rounded-full transition-all" style={{ width: `${progressoSessao}%`, background: c.accent }} />
+        </div>
+      </div>
+
       <div className="flex gap-2.5 overflow-x-auto pb-1 -mx-1 px-1">
         {treino.exercicios.map((e) => {
           const ativo = e.nome === ex.nome;
@@ -491,11 +688,12 @@ function TelaSessao({ c, sessao, setSessao, treinos, series, registrar, encerrar
           const completo = n >= e.series;
           return (
             <button key={e.nome} onClick={() => setSessao({ ...sessao, exercicio: e.nome })}
-              className="shrink-0 px-4 py-2.5 rounded-full text-sm whitespace-nowrap"
+              className="shrink-0 flex items-center gap-1.5 px-4 py-2.5 rounded-full text-sm whitespace-nowrap"
               style={{
                 background: ativo ? c.accent : c.surface, color: ativo ? c.accentInk : (completo ? c.ok : c.ink),
                 border: `1px solid ${ativo ? c.accent : (completo ? c.ok : c.line)}`,
               }}>
+              {completo && !ativo && <Check size={12} />}
               {e.nome.split(" ").slice(0, 2).join(" ")}
               <span style={{ fontFamily: MONO }}> {n}/{e.series}</span>
             </button>
@@ -509,10 +707,10 @@ function TelaSessao({ c, sessao, setSessao, treinos, series, registrar, encerrar
           <Selo c={c} status={ex.status} />
         </div>
 
-        <div className="flex gap-5 mt-4 text-sm" style={{ fontFamily: MONO, color: c.muted }}>
-          <span><b style={{ color: c.ink }}>{ex.series}</b> séries</span>
-          <span><b style={{ color: c.ink }}>{ex.reps}</b> reps</span>
-          <span><b style={{ color: c.ink }}>{mmss(ex.descanso)}</b> descanso</span>
+        <div className="flex gap-5 mt-4 text-sm" style={{ color: c.muted }}>
+          <span className="flex items-center gap-1.5"><List size={14} /><b style={{ color: c.ink, fontFamily: MONO }}>{ex.series}</b> séries</span>
+          <span className="flex items-center gap-1.5"><Dumbbell size={14} /><b style={{ color: c.ink, fontFamily: MONO }}>{ex.reps}</b> reps</span>
+          <span className="flex items-center gap-1.5"><Timer size={14} /><b style={{ color: c.ink, fontFamily: MONO }}>{mmss(ex.descanso)}</b></span>
         </div>
 
         {ex.obs && <p className="text-sm mt-4" style={{ color: c.muted }}>{ex.obs}</p>}
@@ -567,28 +765,12 @@ function TelaSessao({ c, sessao, setSessao, treinos, series, registrar, encerrar
   );
 }
 
-function Stepper({ c, rotulo, valor, setValor, passo, min }) {
-  const muda = (d) => setValor((v) => String(Math.max(min, Number((Number(v || 0) + d).toFixed(2)))));
-  return (
-    <div>
-      <div className="text-xs uppercase tracking-widest mb-2" style={{ color: c.muted, fontFamily: MONO }}>{rotulo}</div>
-      <div className="flex items-center rounded-2xl overflow-hidden" style={{ background: c.surface2 }}>
-        <button onClick={() => muda(-passo)} className="px-3.5 py-3.5" aria-label={`Diminuir ${rotulo}`}><Minus size={18} /></button>
-        <input value={valor} inputMode="decimal"
-          onChange={(e) => setValor(e.target.value.replace(",", "."))}
-          className="w-full text-center text-2xl font-bold bg-transparent outline-none py-2.5"
-          style={{ fontFamily: MONO, color: c.ink }} />
-        <button onClick={() => muda(passo)} className="px-3.5 py-3.5" aria-label={`Aumentar ${rotulo}`}><Plus size={18} /></button>
-      </div>
-    </div>
-  );
-}
-
 /* ------------------------------------------------------------ tela 3 */
 
 function TelaHistorico({ c, series }) {
   const exercicios = useMemo(() => [...new Set(series.map((s) => s.exercicio))].sort(), [series]);
   const [sel, setSel] = useState("");
+  const [aberto, setAberto] = useState(false);
   useEffect(() => { if (!sel && exercicios.length) setSel(exercicios[0]); }, [exercicios, sel]);
 
   const porDia = useMemo(() => {
@@ -612,16 +794,26 @@ function TelaHistorico({ c, series }) {
   const delta = grafico.length > 1 ? grafico.at(-1).carga - grafico[0].carga : 0;
 
   return (
-    <div className="px-5 pt-2 space-y-5">
-      <div className="flex gap-2.5 overflow-x-auto pb-1 -mx-1 px-1">
-        {exercicios.map((e) => (
-          <button key={e} onClick={() => setSel(e)}
-            className="shrink-0 px-4 py-2.5 rounded-full text-sm whitespace-nowrap"
-            style={{
-              background: e === sel ? c.accent : c.surface, color: e === sel ? c.accentInk : c.ink,
-              border: `1px solid ${e === sel ? c.accent : c.line}`,
-            }}>{e}</button>
-        ))}
+    <div className="px-5 pt-6 space-y-5">
+      <div className="relative">
+        <button onClick={() => setAberto((a) => !a)}
+          className="w-full flex items-center justify-between px-5 py-4 rounded-2xl"
+          style={{ background: c.surface, border: `1px solid ${c.line}` }}>
+          <span className="text-sm" style={{ color: c.muted }}>Histórico: <b style={{ color: c.accent }}>{sel || "—"}</b></span>
+          <ChevronDown size={18} style={{ color: c.accent, transform: aberto ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
+        </button>
+        {aberto && (
+          <div className="absolute left-0 right-0 mt-2 z-20 rounded-2xl overflow-hidden max-h-64 overflow-y-auto"
+            style={{ background: c.surface2, border: `1px solid ${c.line}`, boxShadow: "0 16px 32px -12px rgba(0,0,0,0.5)" }}>
+            {exercicios.map((e) => (
+              <button key={e} onClick={() => { setSel(e); setAberto(false); }}
+                className="w-full text-left px-5 py-3 text-sm"
+                style={{ background: e === sel ? `${c.accent}22` : "transparent", color: e === sel ? c.accent : c.ink }}>
+                {e}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="p-6 rounded-2xl" style={{ background: c.surface, border: `1px solid ${c.line}` }}>
@@ -682,74 +874,104 @@ function TelaHistorico({ c, series }) {
 
 /* ------------------------------------------------------------- marcos */
 
-function TelaMarcos({ c, marcos, setMarcos }) {
-  const agora = new Date();
-  const [mes, setMes] = useState(new Date(agora.getFullYear(), agora.getMonth(), 1));
-  const [form, setForm] = useState(null);
-
+function CalendarioMarcos({ c, marcos, mes, setMes, onDia }) {
   const nomeMes = mes.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
   const primeiroDia = new Date(mes.getFullYear(), mes.getMonth(), 1).getDay();
   const totalDias = new Date(mes.getFullYear(), mes.getMonth() + 1, 0).getDate();
   const iso = (d) => `${mes.getFullYear()}-${String(mes.getMonth() + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-  const doMes = marcos.filter((m) => m.data.startsWith(iso(1).slice(0, 7)));
+  const ehHoje = (d) => iso(d) === hoje();
 
   return (
-    <div className="px-5 pt-2 space-y-5">
-      <div className="p-6 rounded-2xl" style={{ background: c.surface, border: `1px solid ${c.line}` }}>
-        <div className="flex items-center justify-between mb-4">
-          <button onClick={() => setMes(new Date(mes.getFullYear(), mes.getMonth() - 1, 1))} className="p-2.5 rounded-full" style={{ background: c.surface2 }}><ChevronLeft size={18} /></button>
-          <span className="font-semibold capitalize">{nomeMes}</span>
-          <button onClick={() => setMes(new Date(mes.getFullYear(), mes.getMonth() + 1, 1))} className="p-2.5 rounded-full" style={{ background: c.surface2 }}><ChevronRight size={18} /></button>
-        </div>
-
-        <div className="grid grid-cols-7 gap-1 text-center text-xs mb-2" style={{ color: c.muted, fontFamily: MONO }}>
-          {["D", "S", "T", "Q", "Q", "S", "S"].map((d, i) => <div key={i}>{d}</div>)}
-        </div>
-        <div className="grid grid-cols-7 gap-1.5">
-          {Array.from({ length: primeiroDia }).map((_, i) => <div key={`v${i}`} />)}
-          {Array.from({ length: totalDias }).map((_, i) => {
-            const dia = i + 1;
-            const marco = marcos.find((m) => m.data === iso(dia));
-            const cor = marco ? TIPOS_MARCO.find((t) => t.id === marco.tipo).cor : null;
-            return (
-              <button key={dia} onClick={() => setForm({ data: iso(dia), tipo: marco?.tipo || "pr", nota: marco?.nota || "" })}
-                className="aspect-square rounded-xl flex flex-col items-center justify-center text-sm"
-                style={{ background: marco ? c.surface2 : "transparent", fontFamily: MONO }}>
-                <span style={{ color: marco ? c.ink : c.muted }}>{dia}</span>
-                {cor && <span className="w-1.5 h-1.5 rounded-full mt-0.5" style={{ background: cor }} />}
-              </button>
-            );
-          })}
-        </div>
+    <div className="p-6 rounded-2xl" style={{ background: c.surface, border: `1px solid ${c.line}` }}>
+      <div className="flex items-center justify-between mb-4">
+        <button onClick={() => setMes(new Date(mes.getFullYear(), mes.getMonth() - 1, 1))} className="p-2.5 rounded-full" style={{ background: c.surface2 }}><ChevronLeft size={18} /></button>
+        <span className="font-semibold capitalize">{nomeMes}</span>
+        <button onClick={() => setMes(new Date(mes.getFullYear(), mes.getMonth() + 1, 1))} className="p-2.5 rounded-full" style={{ background: c.surface2 }}><ChevronRight size={18} /></button>
       </div>
 
-      <div className="flex gap-4 text-xs px-1" style={{ color: c.muted }}>
+      <div className="grid grid-cols-7 gap-1 text-center text-xs mb-2" style={{ color: c.muted, fontFamily: MONO }}>
+        {["D", "S", "T", "Q", "Q", "S", "S"].map((d, i) => <div key={i}>{d}</div>)}
+      </div>
+      <div className="grid grid-cols-7 gap-1.5">
+        {Array.from({ length: primeiroDia }).map((_, i) => <div key={`v${i}`} />)}
+        {Array.from({ length: totalDias }).map((_, i) => {
+          const dia = i + 1;
+          const marco = marcos.find((m) => m.data === iso(dia));
+          const cor = marco ? TIPOS_MARCO.find((t) => t.id === marco.tipo).cor : null;
+          return (
+            <button key={dia} onClick={() => onDia(iso(dia), marco)}
+              className="aspect-square rounded-xl flex flex-col items-center justify-center text-sm"
+              style={{ background: ehHoje(dia) ? c.accent : (marco ? c.surface2 : "transparent"), fontFamily: MONO }}>
+              <span style={{ color: ehHoje(dia) ? c.accentInk : (marco ? c.ink : c.muted) }}>{dia}</span>
+              {cor && <span className="w-1.5 h-1.5 rounded-full mt-0.5" style={{ background: cor }} />}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="flex gap-4 text-xs mt-5 pt-5" style={{ color: c.muted, borderTop: `1px solid ${c.line}` }}>
         {TIPOS_MARCO.map((t) => (
           <span key={t.id} className="flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full" style={{ background: t.cor }} />{t.label}
           </span>
         ))}
       </div>
+    </div>
+  );
+}
 
-      {doMes.length > 0 && (
-        <div className="space-y-2.5">
-          {doMes.sort((a, b) => a.data.localeCompare(b.data)).map((m) => (
-            <div key={m.data} className="flex items-center gap-4 px-5 py-4 rounded-2xl"
-              style={{ background: c.surface, border: `1px solid ${c.line}` }}>
-              <div className="w-11 h-11 rounded-full flex items-center justify-center shrink-0"
-                style={{ background: `${TIPOS_MARCO.find((t) => t.id === m.tipo).cor}22` }}>
-                <Flag size={16} style={{ color: TIPOS_MARCO.find((t) => t.id === m.tipo).cor }} />
+function ConquistaCard({ c, marco }) {
+  const info = TIPOS_MARCO.find((t) => t.id === marco.tipo);
+  const destaquePR = marco.tipo === "pr";
+  return (
+    <div className="flex items-center gap-4 p-5 rounded-2xl"
+      style={{
+        background: destaquePR ? `${info.cor}12` : c.surface,
+        border: `1px solid ${destaquePR ? `${info.cor}40` : c.line}`,
+      }}>
+      <div className="w-12 h-12 rounded-full flex items-center justify-center shrink-0" style={{ background: `${info.cor}22` }}>
+        <Flag size={18} style={{ color: info.cor }} />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-xs font-bold uppercase tracking-wide mb-0.5" style={{ color: info.cor }}>
+          {destaquePR ? "Recorde pessoal" : info.label}
+        </p>
+        <p className="text-sm" style={{ color: c.ink }}>{marco.nota || info.label}</p>
+      </div>
+      <span className="text-xs font-semibold shrink-0" style={{ color: c.muted, fontFamily: MONO }}>{dataBR(marco.data).slice(0, 5)}</span>
+    </div>
+  );
+}
+
+function TelaMarcos({ c, marcos, setMarcos }) {
+  const agora = new Date();
+  const [mes, setMes] = useState(new Date(agora.getFullYear(), agora.getMonth(), 1));
+  const [form, setForm] = useState(null);
+
+  const conquistas = useMemo(
+    () => [...marcos].sort((a, b) => b.data.localeCompare(a.data)),
+    [marcos]
+  );
+
+  return (
+    <div className="px-5 pt-6 space-y-5">
+      <CalendarioMarcos c={c} marcos={marcos} mes={mes} setMes={setMes}
+        onDia={(iso, marco) => setForm({ data: iso, tipo: marco?.tipo || "pr", nota: marco?.nota || "" })} />
+
+      {conquistas.length > 0 && (
+        <div>
+          <p className="text-sm font-bold mb-3" style={{ color: c.ink }}>Conquistas</p>
+          <div className="space-y-3">
+            {conquistas.map((m) => (
+              <div key={m.data} className="relative">
+                <ConquistaCard c={c} marco={m} />
+                <button onClick={() => setMarcos((ms) => ms.filter((x) => x.data !== m.data))}
+                  className="absolute top-4 right-4" aria-label="Remover marco">
+                  <X size={14} style={{ color: c.muted }} />
+                </button>
               </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium">{TIPOS_MARCO.find((t) => t.id === m.tipo).label}</div>
-                {m.nota && <div className="text-sm" style={{ color: c.muted }}>{m.nota}</div>}
-              </div>
-              <span className="text-sm shrink-0" style={{ color: c.muted, fontFamily: MONO }}>{dataBR(m.data).slice(0, 5)}</span>
-              <button onClick={() => setMarcos((ms) => ms.filter((x) => x.data !== m.data))} aria-label="Remover marco">
-                <X size={16} style={{ color: c.muted }} />
-              </button>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       )}
 
@@ -790,23 +1012,42 @@ function TelaMarcos({ c, marcos, setMarcos }) {
 
 const COLUNAS = ["Data", "Treino", "Exercício", "Série", "Repetições", "Carga (kg)", "Observações", "Status"];
 
+function plateBreakdown(perSideKg) {
+  const chapas = [25, 20, 15, 10, 5, 2.5, 1.25];
+  let restante = Math.round(perSideKg * 4) / 4;
+  const usadas = [];
+  for (const p of chapas) {
+    while (restante >= p - 0.001) { usadas.push(p); restante = Math.round((restante - p) * 100) / 100; }
+  }
+  return { usadas, sobra: restante };
+}
+
+function Barbell({ c, usadas }) {
+  const altura = (p) => 24 + p * 3.6;
+  const cor = (p) => PLATE_COLORS[p] || c.muted;
+  return (
+    <div className="flex items-center justify-center gap-1 h-28">
+      {[...usadas].reverse().map((p, i) => (
+        <div key={`l${i}`} className="rounded-sm" style={{ width: 12, height: altura(p), background: cor(p) }} />
+      ))}
+      <div className="rounded-full" style={{ width: 56, height: 8, background: c.muted }} />
+      {usadas.map((p, i) => (
+        <div key={`r${i}`} className="rounded-sm" style={{ width: 12, height: altura(p), background: cor(p) }} />
+      ))}
+    </div>
+  );
+}
+
 function TelaMais({ c, series, setSeries, descanso, setDescanso }) {
-  const [alvo, setAlvo] = useState("60");
+  const [alvo, setAlvo] = useState(60);
   const [barra, setBarra] = useState(20);
   const [copiado, setCopiado] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [statusEnvio, setStatusEnvio] = useState("");
 
-  const anilhas = useMemo(() => {
-    let porLado = (Number(alvo) - Number(barra)) / 2;
-    if (isNaN(porLado)) return { erro: "Peso inválido." };
-    if (porLado < 0) return { erro: "Peso menor que a barra." };
-    const usadas = [];
-    [25, 20, 15, 10, 5, 2.5, 1.25].forEach((p) => {
-      while (porLado >= p - 0.001) { usadas.push(p); porLado = Number((porLado - p).toFixed(3)); }
-    });
-    return { usadas, sobra: porLado };
-  }, [alvo, barra]);
+  const perLado = Math.max(0, (alvo - barra) / 2);
+  const { usadas, sobra } = useMemo(() => plateBreakdown(perLado), [perLado]);
+  const fillPct = Math.round(((alvo - 20) / (140 - 20)) * 100);
 
   const linhas = (lista) => lista.map((s) => [
     dataBR(s.data), s.treino, s.exercicio, s.serie, s.reps, s.carga, s.obs, s.status,
@@ -836,8 +1077,6 @@ function TelaMais({ c, series, setSeries, descanso, setDescanso }) {
     URL.revokeObjectURL(url);
   };
 
-  /* Copia só o que ainda não foi para a planilha, já no formato das colunas
-     de lá. Cole na primeira linha vazia da aba Registros. */
   const copiarPendentes = async () => {
     if (!pendentes.length) return setStatusEnvio("Tudo já está na planilha.");
     const tsv = pendentes.map((s) => [
@@ -856,50 +1095,56 @@ function TelaMais({ c, series, setSeries, descanso, setDescanso }) {
   };
 
   return (
-    <div className="px-5 pt-2 space-y-5">
+    <div className="px-5 pt-6 space-y-5">
+      <style>{`
+        input.slider-anilhas { -webkit-appearance:none; appearance:none; height:6px; border-radius:9999px;
+          background: linear-gradient(90deg, ${c.accent} ${fillPct}%, ${c.surface2} ${fillPct}%); }
+        input.slider-anilhas::-webkit-slider-thumb { -webkit-appearance:none; appearance:none; width:22px; height:22px;
+          border-radius:9999px; background:#fff; border:4px solid ${c.accent}; cursor:pointer; box-shadow:0 2px 8px rgba(0,0,0,.4); }
+        input.slider-anilhas::-moz-range-thumb { width:22px; height:22px; border-radius:9999px; background:#fff;
+          border:4px solid ${c.accent}; cursor:pointer; }
+      `}</style>
+
       <div className="p-6 rounded-2xl" style={{ background: c.surface, border: `1px solid ${c.line}` }}>
         <div className="text-xs uppercase tracking-widest mb-4" style={{ color: c.muted, fontFamily: MONO }}>
           calculadora de anilhas · barra livre
         </div>
-        <div className="grid grid-cols-2 gap-4">
-          <Stepper c={c} rotulo="Peso alvo" valor={alvo} setValor={setAlvo} passo={2.5} min={0} />
-          <div>
-            <div className="text-xs uppercase tracking-widest mb-2" style={{ color: c.muted, fontFamily: MONO }}>Barra</div>
-            <div className="flex gap-1.5">
-              {[20, 15, 10].map((b) => (
-                <button key={b} onClick={() => setBarra(b)} className="flex-1 py-3.5 rounded-xl text-sm font-semibold"
-                  style={{ background: barra === b ? c.accent : c.surface2, color: barra === b ? c.accentInk : c.ink, fontFamily: MONO }}>
-                  {b}
-                </button>
-              ))}
-            </div>
-          </div>
+
+        <div className="flex items-center justify-between mb-4">
+          <span className="text-sm font-medium" style={{ color: c.muted }}>Peso alvo</span>
+          <span className="text-2xl font-extrabold" style={{ fontFamily: MONO, color: c.accent }}>{alvo} kg</span>
+        </div>
+        <input type="range" min={20} max={140} step={2.5} value={alvo}
+          onChange={(e) => setAlvo(Number(e.target.value))}
+          className="slider-anilhas w-full mb-3" />
+
+        <div className="flex gap-1.5 mb-6">
+          {[20, 15, 10].map((b) => (
+            <button key={b} onClick={() => setBarra(b)} className="flex-1 py-2.5 rounded-xl text-xs font-semibold"
+              style={{ background: barra === b ? c.accent : c.surface2, color: barra === b ? c.accentInk : c.ink, fontFamily: MONO }}>
+              barra {b}kg
+            </button>
+          ))}
         </div>
 
-        <div className="mt-5">
-          {anilhas.erro ? (
-            <div className="text-sm" style={{ color: c.pr }}>{anilhas.erro}</div>
-          ) : (
-            <>
-              <div className="flex items-center gap-1 h-16">
-                <div className="h-1.5 flex-1 rounded-l" style={{ background: c.muted }} />
-                {anilhas.usadas.map((p, i) => (
-                  <div key={i} className="rounded-sm"
-                    style={{ width: 14, height: 20 + p * 1.6, background: PLATE_COLORS[p], border: `1px solid ${c.line}` }} />
-                ))}
-                <div className="h-4 w-2 rounded" style={{ background: c.muted }} />
-              </div>
-              <div className="text-sm mt-3" style={{ fontFamily: MONO }}>
-                {anilhas.usadas.length ? `Por lado: ${anilhas.usadas.join(" + ")} kg` : "Só a barra."}
-              </div>
-              {anilhas.sobra > 0.01 && (
-                <div className="text-sm mt-1" style={{ color: c.pr, fontFamily: MONO }}>
-                  Faltam {anilhas.sobra} kg por lado — não fecha com as anilhas comuns.
-                </div>
-              )}
-            </>
-          )}
+        <Barbell c={c} usadas={usadas} />
+
+        <div className="grid grid-cols-2 gap-3 mt-6 pt-5" style={{ borderTop: `1px solid ${c.line}` }}>
+          <div className="text-center">
+            <p className="text-[11px] font-semibold uppercase tracking-wide mb-1" style={{ color: c.muted }}>Total</p>
+            <p className="text-xl font-bold" style={{ fontFamily: MONO }}>{alvo} kg</p>
+          </div>
+          <div className="text-center" style={{ borderLeft: `1px solid ${c.line}` }}>
+            <p className="text-[11px] font-semibold uppercase tracking-wide mb-1" style={{ color: c.muted }}>Por lado</p>
+            <p className="text-xl font-bold" style={{ fontFamily: MONO }}>{perLado} kg</p>
+          </div>
         </div>
+        <p className="text-xs text-center mt-3" style={{ color: c.muted }}>
+          {usadas.length ? usadas.join(" + ") + " kg por lado" : "Só a barra"}
+        </p>
+        {sobra > 0.01 && (
+          <p className="text-xs text-center mt-1" style={{ color: c.pr }}>Faltam {sobra} kg por lado — não fecha com anilhas comuns.</p>
+        )}
         <p className="text-xs mt-4" style={{ color: c.muted }}>
           Isto é para barra livre. Na polia e na extensora, cada anilha da pilha vale 5 kg.
         </p>
@@ -924,16 +1169,20 @@ function TelaMais({ c, series, setSeries, descanso, setDescanso }) {
 
       <div className="p-6 rounded-2xl" style={{ background: c.surface, border: `1px solid ${c.line}` }}>
         <div className="text-xs uppercase tracking-widest mb-3" style={{ color: c.muted, fontFamily: MONO }}>
-          aba registros da planilha
+          sincronização de planilha
         </div>
-        <div className="text-sm" style={{ color: c.muted }}>
-          {series.length} séries no app · <b style={{ color: pendentes.length ? c.warn : c.ok }}>{pendentes.length}</b> fora da planilha
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2.5">
+            <span className="w-2 h-2 rounded-full" style={{ background: c.ok }} />
+            <span className="text-sm font-medium" style={{ color: c.ink }}>{series.length} séries no app</span>
+          </div>
+          <span className="text-xs font-semibold" style={{ color: pendentes.length ? c.warn : c.ok }}>{pendentes.length} fora da planilha</span>
         </div>
 
         <button onClick={copiarPendentes} disabled={enviando}
-          className="w-full mt-4 py-3.5 rounded-xl font-semibold flex items-center justify-center gap-2"
+          className="w-full py-3.5 rounded-xl font-semibold flex items-center justify-center gap-2"
           style={{ background: c.accent, color: c.accentInk, opacity: enviando ? 0.6 : 1 }}>
-          <Upload size={18} /> Copiar as {pendentes.length} novas
+          <Upload size={18} /> Copiar registros ({pendentes.length})
         </button>
 
         {statusEnvio && <div className="text-sm mt-2.5" style={{ color: c.muted }}>{statusEnvio}</div>}
@@ -943,8 +1192,8 @@ function TelaMais({ c, series, setSeries, descanso, setDescanso }) {
             style={{ background: c.surface2, color: c.ink }}>
             <Copy size={18} /> {copiado ? "Copiado" : "Copiar tudo"}
           </button>
-          <button onClick={baixarCSV} className="px-5 rounded-xl" style={{ background: c.surface2 }} aria-label="Baixar CSV">
-            <Download size={18} />
+          <button onClick={baixarCSV} className="flex-1 py-3.5 rounded-xl font-medium flex items-center justify-center gap-2" style={{ background: c.surface2, color: c.ink }}>
+            <Download size={18} /> Exportar
           </button>
         </div>
 
@@ -1022,16 +1271,3 @@ function Abas({ c, aba, setAba }) {
     </nav>
   );
 }
-
-function Vazio({ c, texto, acao, onAcao }) {
-  return (
-    <div className="px-8 py-16 text-center">
-      <p style={{ color: c.muted }}>{texto}</p>
-      {acao && (
-        <button onClick={onAcao} className="mt-4 px-6 py-3.5 rounded-2xl font-semibold"
-          style={{ background: c.accent, color: c.accentInk }}>{acao}</button>
-      )}
-    </div>
-  );
-}
-redesign dark mode premium
