@@ -326,6 +326,7 @@ export default function AppTreino() {
   const [descanso, setDescanso] = useState(90);
   const [sessao, setSessao] = useState(null);
   const [aviso, setAviso] = useState(null);
+  const [videos, setVideos] = useState({}); // { [nomeExercicio]: url }
 
   const c = THEMES[tema];
 
@@ -342,6 +343,7 @@ export default function AppTreino() {
       setMarcos(d.marcos || []);
       setDescanso(d.descanso ?? 90);
       setSessao(d.sessao || null);
+      setVideos(d.videos || {});
       if (d.tema) setTema(d.tema);
     } else {
       setSeries(semear());
@@ -352,35 +354,48 @@ export default function AppTreino() {
 
   const salvar = useCallback(() => {
     const ok = storageSet(STORE_KEY, JSON.stringify({
-      treinos, series, marcos, descanso, sessao, tema,
+      treinos, series, marcos, descanso, sessao, tema, videos,
     }));
     if (!ok) {
       setAviso("Não deu para salvar agora. Os dados seguem na tela até você fechar.");
       setTimeout(() => setAviso(null), 4000);
     }
-  }, [treinos, series, marcos, descanso, sessao, tema]);
+  }, [treinos, series, marcos, descanso, sessao, tema, videos]);
 
-  useEffect(() => { if (!carregando) salvar(); }, [series, marcos, descanso, sessao, tema, treinos, carregando]); // eslint-disable-line
+  useEffect(() => { if (!carregando) salvar(); }, [series, marcos, descanso, sessao, tema, treinos, videos, carregando]); // eslint-disable-line
 
-  /* timer de descanso */
+  /* timer de descanso — baseado em timestamp real (Date.now()), não em
+     contagem de ticks. Assim, se o navegador segurar/atrasar o
+     setInterval com o app em segundo plano (o comportamento normal de
+     todo browser), o tempo restante ao voltar é recalculado a partir
+     do relógio, não do número de ticks perdidos — o timer não "para". */
   const [restante, setRestante] = useState(0);
   const [rodando, setRodando] = useState(false);
-  const tick = useRef(null);
+  const fimRef = useRef(null); // timestamp (ms) de quando o descanso termina
 
   useEffect(() => {
-    if (!rodando) return;
-    tick.current = setInterval(() => {
-      setRestante((s) => {
-        if (s <= 1) {
-          setRodando(false);
-          if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
-          return 0;
-        }
-        return s - 1;
-      });
-    }, 1000);
-    return () => clearInterval(tick.current);
-  }, [rodando]);
+    if (!rodando) { fimRef.current = null; return; }
+    fimRef.current = Date.now() + restante * 1000;
+
+    const atualizar = () => {
+      if (fimRef.current == null) return;
+      const restam = Math.max(0, Math.round((fimRef.current - Date.now()) / 1000));
+      setRestante(restam);
+      if (restam <= 0) {
+        setRodando(false);
+        if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+      }
+    };
+
+    const id = setInterval(atualizar, 1000);
+    const aoVoltarPrimeiroPlano = () => { if (document.visibilityState === "visible") atualizar(); };
+    document.addEventListener("visibilitychange", aoVoltarPrimeiroPlano);
+
+    return () => {
+      clearInterval(id);
+      document.removeEventListener("visibilitychange", aoVoltarPrimeiroPlano);
+    };
+  }, [rodando]); // eslint-disable-line
 
   const registrarSerie = ({ exercicio, reps, carga, obs, descansoEx }) => {
     const nSerie = series.filter(
@@ -393,6 +408,15 @@ export default function AppTreino() {
     }]);
     setRestante(descansoEx || descanso);
     setRodando(true);
+  };
+
+  /* corrige uma série já registrada hoje (ex.: errou a contagem de reps) */
+  const editarSerie = (id, dados) => {
+    setSeries((a) => a.map((s) => (s.id === id ? { ...s, ...dados, sincronizado: false } : s)));
+  };
+
+  const setVideo = (nomeExercicio, url) => {
+    setVideos((v) => ({ ...v, [nomeExercicio]: url }));
   };
 
   const encerrarSessao = () => {
@@ -456,7 +480,8 @@ export default function AppTreino() {
         {aba === "sessao" && (
           sessao
             ? <TelaSessao c={c} sessao={sessao} setSessao={setSessao} treinos={treinos}
-                series={series} registrar={registrarSerie} encerrar={encerrarSessao} />
+                series={series} registrar={registrarSerie} editar={editarSerie} encerrar={encerrarSessao}
+                videos={videos} setVideo={setVideo} />
             : <Vazio c={c} texto="Nenhum treino em andamento." acao="Escolher treino" onAcao={() => setAba("treinos")} />
         )}
 
@@ -471,7 +496,7 @@ export default function AppTreino() {
       {(rodando || restante > 0) && (
         <BarraTimer c={c} restante={restante} total={descanso} rodando={rodando}
           alternar={() => setRodando((r) => !r)}
-          mais={() => setRestante((s) => s + 15)}
+          mais={() => { if (fimRef.current != null) fimRef.current += 15000; setRestante((s) => s + 15); }}
           fechar={() => { setRodando(false); setRestante(0); }} />
       )}
 
@@ -628,7 +653,7 @@ function TelaTreinos({ c, treinos, ultimaVez, iniciar, sessao, continuar, treino
 
 /* ------------------------------------------------------------ tela 2 */
 
-function TelaSessao({ c, sessao, setSessao, treinos, series, registrar, encerrar }) {
+function TelaSessao({ c, sessao, setSessao, treinos, series, registrar, editar, encerrar, videos, setVideo }) {
   const treino = treinos.find((t) => t.id === sessao.treino);
   const ex = treino.exercicios.find((e) => e.nome === sessao.exercicio) || treino.exercicios[0];
   const [reps, setReps] = useState("");
@@ -667,6 +692,17 @@ function TelaSessao({ c, sessao, setSessao, treinos, series, registrar, encerrar
     setErro("");
     registrar({ exercicio: ex.nome, reps: r, carga: k, obs, descansoEx: ex.descanso });
     setObs("");
+
+    /* completou as séries deste exercício? pula pro próximo que ainda falta */
+    const totalAgora = feitasHoje.length + 1;
+    if (totalAgora >= ex.series) {
+      const idxAtual = treino.exercicios.findIndex((e) => e.nome === ex.nome);
+      const proximo = treino.exercicios.slice(idxAtual + 1).find((e) => {
+        const n = series.filter((s) => s.exercicio === e.nome && s.data.slice(0, 10) === hoje()).length;
+        return n < e.series;
+      });
+      if (proximo) setSessao({ ...sessao, exercicio: proximo.nome });
+    }
   };
 
   return (
@@ -715,6 +751,8 @@ function TelaSessao({ c, sessao, setSessao, treinos, series, registrar, encerrar
 
         {ex.obs && <p className="text-sm mt-4" style={{ color: c.muted }}>{ex.obs}</p>}
 
+        <LinkVideo c={c} nome={ex.nome} url={videos[ex.nome]} salvar={(url) => setVideo(ex.nome, url)} />
+
         <div className="text-sm mt-4 pt-4" style={{ color: c.muted, borderTop: `1px solid ${c.line}` }}>
           {anterior
             ? `Última vez: ${anterior.carga} kg · ${anterior.reps} reps · ${dataBR(anterior.data)}`
@@ -747,11 +785,7 @@ function TelaSessao({ c, sessao, setSessao, treinos, series, registrar, encerrar
           </div>
           <div className="space-y-2.5">
             {feitasHoje.map((s) => (
-              <div key={s.id} className="flex items-center justify-between px-5 py-3.5 rounded-xl"
-                style={{ background: c.surface, border: `1px solid ${c.line}` }}>
-                <span className="text-sm" style={{ color: c.muted, fontFamily: MONO }}>série {s.serie}</span>
-                <span className="font-semibold" style={{ fontFamily: MONO }}>{s.carga} kg × {s.reps}</span>
-              </div>
+              <ItemSerieFeita key={s.id} c={c} s={s} onSalvar={(dados) => editar(s.id, dados)} />
             ))}
           </div>
         </div>
@@ -760,6 +794,98 @@ function TelaSessao({ c, sessao, setSessao, treinos, series, registrar, encerrar
       <button onClick={encerrar} className="w-full py-3.5 rounded-2xl font-medium"
         style={{ background: c.surface2, color: c.ink }}>
         Encerrar treino {treino.id}
+      </button>
+    </div>
+  );
+}
+
+/* série já registrada hoje, com edição inline (corrigir reps/carga
+   depois de errar a contagem) */
+function ItemSerieFeita({ c, s, onSalvar }) {
+  const [editando, setEditando] = useState(false);
+  const [reps, setReps] = useState(String(s.reps));
+  const [carga, setCarga] = useState(String(s.carga));
+
+  useEffect(() => {
+    if (!editando) { setReps(String(s.reps)); setCarga(String(s.carga)); }
+  }, [s.reps, s.carga]); // eslint-disable-line
+
+  if (!editando) {
+    return (
+      <button onClick={() => setEditando(true)}
+        className="w-full flex items-center justify-between px-5 py-3.5 rounded-xl text-left"
+        style={{ background: c.surface, border: `1px solid ${c.line}` }}>
+        <span className="text-sm" style={{ color: c.muted, fontFamily: MONO }}>série {s.serie}</span>
+        <span className="flex items-center gap-2">
+          <span className="font-semibold" style={{ fontFamily: MONO }}>{s.carga} kg × {s.reps}</span>
+          <span className="text-xs" style={{ color: c.muted }}>editar</span>
+        </span>
+      </button>
+    );
+  }
+
+  const salvar = () => {
+    const r = Number(reps), k = Number(carga);
+    if (!r || r < 1 || isNaN(k) || k < 0) return;
+    onSalvar({ reps: r, carga: k });
+    setEditando(false);
+  };
+
+  return (
+    <div className="px-5 py-3.5 rounded-xl" style={{ background: c.surface, border: `1px solid ${c.accent}` }}>
+      <div className="text-xs mb-2.5" style={{ color: c.muted, fontFamily: MONO }}>série {s.serie} · editando</div>
+      <div className="flex items-center gap-2">
+        <input value={reps} inputMode="numeric" onChange={(e) => setReps(e.target.value)}
+          className="w-16 text-center py-2.5 rounded-lg text-sm font-semibold outline-none"
+          style={{ background: c.surface2, color: c.ink, fontFamily: MONO }} />
+        <span className="text-xs" style={{ color: c.muted }}>reps ×</span>
+        <input value={carga} inputMode="decimal" onChange={(e) => setCarga(e.target.value.replace(",", "."))}
+          className="w-16 text-center py-2.5 rounded-lg text-sm font-semibold outline-none"
+          style={{ background: c.surface2, color: c.ink, fontFamily: MONO }} />
+        <span className="text-xs" style={{ color: c.muted }}>kg</span>
+        <button onClick={salvar} className="ml-auto px-3.5 py-2.5 rounded-lg text-sm font-semibold"
+          style={{ background: c.accent, color: c.accentInk }}>Salvar</button>
+        <button onClick={() => setEditando(false)} className="px-3.5 py-2.5 rounded-lg text-sm"
+          style={{ background: c.surface2, color: c.ink }}>Cancelar</button>
+      </div>
+    </div>
+  );
+}
+
+/* link de vídeo de execução do exercício — o programa não vem com link
+   pronto, então cai num fallback de busca no YouTube; o link colado
+   pelo usuário fica salvo por exercício (persistente, mesmo nome vale
+   pros dois casos: treino A ou D, por ex., que repetem exercício). */
+function LinkVideo({ c, nome, url, salvar }) {
+  const [editando, setEditando] = useState(false);
+  const [valor, setValor] = useState(url || "");
+
+  useEffect(() => { setValor(url || ""); setEditando(false); }, [nome]); // eslint-disable-line
+
+  const buscaFallback = `https://www.youtube.com/results?search_query=${encodeURIComponent(nome + " execução técnica")}`;
+
+  if (editando) {
+    return (
+      <div className="flex items-center gap-2 mt-4">
+        <input value={valor} onChange={(e) => setValor(e.target.value)} placeholder="Cole o link do vídeo"
+          className="flex-1 min-w-0 px-4 py-2.5 rounded-xl text-sm outline-none"
+          style={{ background: c.surface2, color: c.ink, border: `1px solid ${c.line}` }} />
+        <button onClick={() => { salvar(valor.trim()); setEditando(false); }}
+          className="shrink-0 px-3.5 py-2.5 rounded-xl text-sm font-semibold" style={{ background: c.accent, color: c.accentInk }}>
+          Salvar
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-3 mt-4 text-sm">
+      <a href={url || buscaFallback} target="_blank" rel="noopener noreferrer"
+        className="flex items-center gap-1.5 font-medium" style={{ color: c.accent }}>
+        <Play size={13} fill="currentColor" /> {url ? "Ver execução" : "Buscar execução no YouTube"}
+      </a>
+      <button onClick={() => setEditando(true)} className="text-xs font-medium underline underline-offset-2" style={{ color: c.muted }}>
+        {url ? "editar link" : "colar link"}
       </button>
     </div>
   );
