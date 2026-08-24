@@ -49,63 +49,86 @@ const STATUS = {
   novo: { label: "não testado", cor: "muted" },
 };
 
+/* DUP (Daily Undulating Periodization) — força e hipertrofia alternados
+   na semana. Cada exercício carrega seu próprio "rir" (RIR alvo, faixa
+   de Reps In Reserve) além dos campos de série/reps/descanso/alvo já
+   existentes. `porLado: true` marca cargas informadas por lado (usadas
+   como estão, sem duplicar); `aproximado: true` marca cargas ainda sem
+   histórico, só uma estimativa inicial.                                */
 const TREINOS_PADRAO = [
   {
     id: "A", nome: "Costas · Bíceps · Core", dia: "Segunda", tipo: "forca",
-    aviso: "Handebol 17h30 — treino de superior antes da quadra",
+    aviso: "Treino de FORÇA — RIR 1-2 nos compostos",
     exercicios: [
-      { nome: "Puxada Frontal na Polia", series: 4, reps: "8-10", descanso: 90, alvo: 55, status: "manter", obs: "11 anilhas de 5 kg. Só sobe quando fechar 4×10 limpo, sem embalo." },
-      { nome: "Remada Curvada c/ Halteres", series: 3, reps: "8-10", descanso: 90, alvo: 20, status: "subir", obs: "Por halter. Tronco firme, sem roubar com a lombar." },
-      { nome: "Remada Baixa no Cabo", series: 3, reps: "10-12", descanso: 90, alvo: 45, status: "subir", obs: "9 anilhas de 5 kg. Escápulas para trás antes de puxar." },
-      { nome: "Rosca Direta (Barra W)", series: 3, reps: "10-12", descanso: 60, alvo: 5, status: "manter", obs: "Por lado. Reduzida de 7 kg ao adicionar excêntrica controlada — é técnica, não regressão." },
-      { nome: "Rosca Martelo", series: 3, reps: "12", descanso: 60, alvo: 6, status: "subir", obs: "Por halter. Pegada neutra o movimento inteiro." },
-      { nome: "Abdominal Prancha", series: 3, reps: "60s", descanso: 45, alvo: 0, status: "manter", obs: "Registre os segundos no campo de repetições. Meta: fechar 60s." },
+      { nome: "Puxada Frontal na Polia", series: 4, reps: "8-10", descanso: 120, alvo: 55, rir: "1-2", status: "manter", obs: "11 anilhas de 5 kg. Só sobe quando fechar 4×10 limpo, sem embalo." },
+      { nome: "Remada Curvada c/ Halteres", series: 3, reps: "8-10", descanso: 120, alvo: 20, rir: "1-2", status: "subir", obs: "Por halter. Tronco firme, sem roubar com a lombar." },
+      { nome: "Puxada Lateral (máquina)", series: 3, reps: "12-15", descanso: 90, alvo: 30, rir: "2-3", status: "novo", obs: "Pegada neutra, foco no grande dorsal." },
+      { nome: "Rosca Direta (Barra W)", series: 3, reps: "8-10", descanso: 90, alvo: 5, porLado: true, rir: "1-2", status: "manter", obs: "Por lado. Reduzida ao adicionar excêntrica controlada — é técnica, não regressão." },
+      { nome: "Rosca Martelo", series: 3, reps: "8-10", descanso: 90, alvo: 6, rir: "1-2", status: "subir", obs: "Por halter. Pegada neutra o movimento inteiro." },
+      { nome: "Abdominal Prancha", series: 3, reps: "60s", descanso: 45, alvo: 0, rir: null, status: "manter", obs: "Registre os segundos no campo de repetições. Meta: fechar 60s." },
     ],
   },
   {
-    id: "B", nome: "Peito · Tríceps · Ombros", dia: "Terça", tipo: "forca",
-    aviso: "Handebol 20h30 — evite falha total no supino",
+    id: "B", nome: "Peito · Tríceps · Ombros", dia: "Terça", tipo: "hipertrofia",
+    aviso: "Handebol 22h — treino de HIPERTROFIA, RIR 2-3",
     exercicios: [
-      { nome: "Supino Reto com Barra", series: 4, reps: "8-10", descanso: 120, alvo: 25, status: "atencao", obs: "Por lado. Falhou reps em duas sessões seguidas — reduzir para 22,5 kg e reconstruir." },
-      { nome: "Supino Inclinado com Halteres", series: 3, reps: "10-12", descanso: 90, alvo: 18, status: "manter", obs: "Por halter. Fechar 3×12 antes de subir." },
-      { nome: "Crossover na Polia", series: 3, reps: "12-15", descanso: 60, alvo: 10, status: "subir", obs: "2 anilhas de 5 kg. Fecha as 15 reps com folga." },
-      { nome: "Desenvolvimento com Halteres", series: 3, reps: "8-10", descanso: 90, alvo: 14, status: "manter", obs: "Por halter. Última série vinha caindo para 8 reps." },
-      { nome: "Tríceps Testa na Polia", series: 3, reps: "10-12", descanso: 60, alvo: 25, status: "subir", obs: "5 anilhas de 5 kg. Cotovelo parado." },
-      { nome: "Tríceps Corda na Polia", series: 3, reps: "12-15", descanso: 45, alvo: 20, status: "manter", obs: "4 anilhas de 5 kg. Abre a corda no final do movimento." },
+      { nome: "Supino Inclinado c/ Halteres", series: 3, reps: "10-12", descanso: 90, alvo: 18, rir: "2-3", status: "manter", obs: "Por halter. Fechar 3×12 antes de subir." },
+      { nome: "Crossover na Polia", series: 3, reps: "12-15", descanso: 60, alvo: 10, rir: "2-3", status: "subir", obs: "2 anilhas de 5 kg. Fecha as 15 reps com folga." },
+      { nome: "Elevação Lateral c/ Halteres", series: 3, reps: "12-15", descanso: 60, alvo: 9, rir: "2-3", status: "subir", obs: "Por halter. Sobe até a linha do ombro, sem encolher o trapézio." },
+      { nome: "Tríceps Testa na Polia", series: 3, reps: "12-15", descanso: 60, alvo: 25, rir: "2-3", status: "subir", obs: "5 anilhas de 5 kg. Cotovelo parado." },
+      { nome: "Desenvolvimento c/ Halteres", series: 2, reps: "10-12", descanso: 90, alvo: 14, rir: "2-3", status: "manter", obs: "Por halter. Última série vinha caindo para 8 reps." },
     ],
   },
   {
-    id: "AT", nome: "Descanso ativo · prevenção", dia: "Quarta", tipo: "flexibilidade",
-    aviso: "Handebol 20h30 — nada que gere fadiga",
+    id: "D", nome: "Pernas · Força", dia: "Quarta", tipo: "forca",
+    aviso: "Treino de FORÇA — RIR 1-2 nos compostos",
     exercicios: [
-      { nome: "Rotação Externa de Ombro", series: 3, reps: "15-20", descanso: 30, alvo: 2, status: "novo", obs: "Protocolo Oslo (Andersson et al., 2017) para o ombro de arremesso. Carga leve, foco em controle." },
-      { nome: "Copenhagen Adduction", series: 2, reps: "8-10", descanso: 45, alvo: 0, status: "novo", obs: "Prevenção de lesão de adutor (Harøy et al., 2019). Tensão na virilha, nunca na lombar." },
-      { nome: "Caminhada leve", series: 1, reps: "25", descanso: 0, alvo: 0, status: "novo", obs: "Minutos no campo de repetições. Ritmo de conversa." },
+      { nome: "Agachamento na Máquina/Smith", series: 4, reps: "8-10", descanso: 120, alvo: 40, porLado: true, rir: "1-2", status: "manter", obs: "Por lado. Profundidade confortável, joelho na direção do pé." },
+      { nome: "Leg Press 45°", series: 3, reps: "8-10", descanso: 120, alvo: 60, porLado: true, rir: "1-2", status: "manter", obs: "Por lado. Não travar o joelho no topo." },
+      { nome: "Cadeira Extensora", series: 3, reps: "12-15", descanso: 60, alvo: 50, rir: "2-3", status: "manter", obs: "10 anilhas de 5 kg. Pausa de 1s com a perna estendida." },
+      { nome: "Gêmeos em Pé", series: 3, reps: "8-10", descanso: 120, alvo: 30, rir: "1-2", status: "manter", obs: "Por lado. Amplitude completa, pausa no topo e embaixo." },
+      { nome: "Panturrilha Sentado", series: 3, reps: "15", descanso: 60, alvo: 0, rir: "2-3", status: "novo", obs: "Joelho a 90°, foco no sóleo." },
     ],
   },
   {
-    id: "C", nome: "Ombros · Trapézio · Core", dia: "Quinta", tipo: "forca",
-    aviso: "Sem handebol — dia bom para finisher de HIIT",
+    id: "E", nome: "Posterior · Glúteo", dia: "Quinta", tipo: "hipertrofia",
+    aviso: "Handebol 22h — treino de HIPERTROFIA, RIR 2-3",
     exercicios: [
-      { nome: "Elevação Lateral com Halteres", series: 4, reps: "12-15", descanso: 60, alvo: 9, status: "subir", obs: "Por halter. Sobe até a linha do ombro, sem encolher o trapézio." },
-      { nome: "Rotação Externa com Halteres", series: 3, reps: "12-15", descanso: 60, alvo: 2, status: "novo", obs: "Entrou no lugar da Elevação Frontal — o deltoide anterior já é treinado no B." },
-      { nome: "Crucifixo Invertido com Halteres", series: 4, reps: "12-15", descanso: 60, alvo: 5, status: "manter", obs: "Por halter. Tronco quase paralelo ao chão." },
-      { nome: "Encolhimento de Ombros", series: 4, reps: "12", descanso: 60, alvo: 24, status: "manter", obs: "Por halter. Pausa de 1s no topo, sem girar o ombro." },
-      { nome: "Pallof Press na Polia", series: 3, reps: "10-12", descanso: 45, alvo: 15, status: "novo", obs: "Por lado. Entrou no lugar do abdominal infra — anti-rotação transfere direto para o arremesso." },
+      { nome: "Remada Baixa no Cabo", series: 3, reps: "10-12", descanso: 90, alvo: 45, rir: "2-3", status: "subir", obs: "9 anilhas de 5 kg. Escápulas para trás antes de puxar." },
+      { nome: "Stiff com Barra/Halteres", series: 3, reps: "10-12", descanso: 90, alvo: 18, aproximado: true, rir: "2-3", status: "novo", obs: "Carga aproximada — comece conservador e anote o que usar." },
+      { nome: "Elevação Pélvica com Barra", series: 3, reps: "12-15", descanso: 90, alvo: 15, aproximado: true, rir: "2-3", status: "novo", obs: "Carga aproximada. Contração máxima do glúteo no topo." },
+      { nome: "Mesa Flexora", series: 2, reps: "12-15", descanso: 90, alvo: 0, rir: "2-3", status: "novo", obs: "Sem carga registrada ainda. Quadril colado no banco." },
     ],
   },
   {
-    id: "D", nome: "Pernas completo", dia: "Sexta", tipo: "forca",
-    aviso: "Dia mais longe do handebol — pode pesar",
+    id: "C", nome: "Ombros · Trapézio · Core", dia: "Sexta", tipo: "forca",
+    aviso: "Treino de FORÇA — RIR 1-2 nos compostos",
     exercicios: [
-      { nome: "Agachamento na Máquina/Smith", series: 4, reps: "8-10", descanso: 120, alvo: 40, status: "manter", obs: "Por lado. Profundidade confortável, joelho na direção do pé." },
-      { nome: "Leg Press 45°", series: 3, reps: "10-12", descanso: 120, alvo: 60, status: "manter", obs: "Por lado. Não travar o joelho no topo." },
-      { nome: "Stiff com Barra ou Halteres", series: 4, reps: "8-10", descanso: 120, alvo: 0, status: "novo", obs: "Sem carga registrada ainda. Comece conservador e anote o que usar." },
-      { nome: "Elevação Pélvica com Barra", series: 3, reps: "10-12", descanso: 90, alvo: 0, status: "novo", obs: "Sem carga registrada ainda. Contração máxima do glúteo no topo." },
-      { nome: "Cadeira Extensora", series: 3, reps: "12-15", descanso: 60, alvo: 50, status: "manter", obs: "10 anilhas de 5 kg. Pausa de 1s com a perna estendida." },
-      { nome: "Mesa Flexora", series: 3, reps: "10-12", descanso: 90, alvo: 0, status: "novo", obs: "Sem carga registrada ainda. Quadril colado no banco." },
-      { nome: "Gêmeos em Pé", series: 3, reps: "12-15", descanso: 60, alvo: 30, status: "manter", obs: "Por lado. Amplitude completa, pausa no topo e embaixo." },
-      { nome: "Panturrilha Sentado", series: 3, reps: "15", descanso: 60, alvo: 0, status: "novo", obs: "Sem carga registrada ainda. Joelho a 90°, foco no sóleo." },
+      { nome: "Elevação Lateral c/ Halteres", series: 4, reps: "8-10", descanso: 90, alvo: 9, rir: "1-2", status: "subir", obs: "Por halter. Variação de força — carga mais pesada, menos reps que na terça." },
+      { nome: "Rotação Externa c/ Halteres", series: 3, reps: "12-15", descanso: 60, alvo: 2, rir: "2-3", status: "novo", obs: "Protocolo de prevenção do ombro de arremesso, carga leve e controle." },
+      { nome: "Crucifixo Invertido c/ Halteres", series: 4, reps: "12-15", descanso: 60, alvo: 5, rir: "2-3", status: "manter", obs: "Por halter. Tronco quase paralelo ao chão." },
+      { nome: "Encolhimento de Ombros c/ Halteres", series: 4, reps: "8-10", descanso: 90, alvo: 24, rir: "1-2", status: "manter", obs: "Por halter. Pausa de 1s no topo, sem girar o ombro." },
+      { nome: "Pallof Press na Polia", series: 3, reps: "10-12", descanso: 45, alvo: 15, rir: "2-3", status: "novo", obs: "Por lado. Anti-rotação — transfere direto para o arremesso." },
+    ],
+  },
+  {
+    id: "RS", nome: "Recuperação Ativa", dia: "Sábado", tipo: "recuperacao",
+    aviso: "Dia de recuperação — foco em mobilidade", duracao: "20-30 min",
+    exercicios: [
+      { nome: "Mobilidade de coluna", series: 1, reps: "5-8 min", descanso: 0, alvo: 0, rir: null, status: "novo", obs: "Rotações torácicas, gato-camelo, cat-cow. Sem pressa." },
+      { nome: "Mobilidade de quadril", series: 1, reps: "5-8 min", descanso: 0, alvo: 0, rir: null, status: "novo", obs: "90/90, agachamento profundo assistido, balanço de perna." },
+      { nome: "Alongamento estático", series: 1, reps: "5-8 min", descanso: 0, alvo: 0, rir: null, status: "novo", obs: "Cadeia posterior, peitoral, flexores de quadril. 30-45s por posição." },
+      { nome: "Respiração/relaxamento", series: 1, reps: "3-5 min", descanso: 0, alvo: 0, rir: null, status: "novo", obs: "Respiração diafragmática lenta, foco em desativar o sistema nervoso." },
+    ],
+  },
+  {
+    id: "RD", nome: "Recuperação Ativa", dia: "Domingo", tipo: "recuperacao",
+    aviso: "Dia de recuperação — foco em mobilidade", duracao: "20-30 min",
+    exercicios: [
+      { nome: "Mobilidade de coluna", series: 1, reps: "5-8 min", descanso: 0, alvo: 0, rir: null, status: "novo", obs: "Rotações torácicas, gato-camelo, cat-cow. Sem pressa." },
+      { nome: "Mobilidade de quadril", series: 1, reps: "5-8 min", descanso: 0, alvo: 0, rir: null, status: "novo", obs: "90/90, agachamento profundo assistido, balanço de perna." },
+      { nome: "Alongamento estático", series: 1, reps: "5-8 min", descanso: 0, alvo: 0, rir: null, status: "novo", obs: "Cadeia posterior, peitoral, flexores de quadril. 30-45s por posição." },
+      { nome: "Respiração/relaxamento", series: 1, reps: "3-5 min", descanso: 0, alvo: 0, rir: null, status: "novo", obs: "Respiração diafragmática lenta, foco em desativar o sistema nervoso." },
     ],
   },
 ];
@@ -155,6 +178,10 @@ const HISTORICO_IMPORTADO = [
 const MARCOS_IMPORTADOS = [
   { data: "2026-07-27", tipo: "ciclo", nota: "Início do acompanhamento — split ABCDE ajustado ao handebol" },
   { data: "2026-08-17", tipo: "pr", nota: "Puxada Frontal 55 kg (11 anilhas)" },
+  { data: "2026-08-24", tipo: "ciclo", nota: "Início do DUP — força/hipertrofia ondulados, RIR e deload a cada 4 semanas" },
+  { data: "2026-09-14", tipo: "deload", nota: "🔴 Deload Week 1" },
+  { data: "2026-10-12", tipo: "deload", nota: "🔴 Deload Week 2" },
+  { data: "2026-11-09", tipo: "deload", nota: "🔴 Deload Week 3" },
 ];
 
 const TIPOS_MARCO = [
@@ -166,8 +193,37 @@ const TIPOS_MARCO = [
 const FILTROS_DASHBOARD = [
   { id: "todos", label: "Todos" },
   { id: "forca", label: "Força" },
-  { id: "cardio", label: "Cardio" },
-  { id: "flexibilidade", label: "Flexibilidade" },
+  { id: "hipertrofia", label: "Hipertrofia" },
+  { id: "recuperacao", label: "Recuperação" },
+];
+
+/* ---------------------------------------------------------- deload
+   Semanas 4, 8 e 12 do programa (datas fixas, conforme calendário do
+   Breno). Nessas semanas as cargas caem ~45-50% e a sexta (treino C)
+   vira dia de descanso — só alongamento e mobilidade.                */
+const DELOAD_SEMANAS = [
+  { numero: 1, inicio: "2026-09-14", fim: "2026-09-20" },
+  { numero: 2, inicio: "2026-10-12", fim: "2026-10-18" },
+  { numero: 3, inicio: "2026-11-09", fim: "2026-11-15" },
+];
+
+function semanaDeload(dataIso) {
+  return DELOAD_SEMANAS.find((s) => dataIso >= s.inicio && dataIso <= s.fim) || null;
+}
+
+/* carga alvo já considerando deload — reduz ~47,5% (dentro da faixa
+   45-50% pedida) e arredonda em passos de 0,5 kg */
+function cargaComDeload(alvo, emDeload) {
+  if (!emDeload || !alvo) return alvo;
+  return Math.round(alvo * 0.525 * 2) / 2;
+}
+
+const RIR_OPCOES = [0, 1, 2, 3, 4, 5];
+
+/* score de bem-estar 0-10, em passos de 2, com emoji por faixa */
+const BEM_ESTAR_OPCOES = [
+  { valor: 0, emoji: "😞" }, { valor: 2, emoji: "😟" }, { valor: 4, emoji: "😐" },
+  { valor: 6, emoji: "🙂" }, { valor: 8, emoji: "😊" }, { valor: 10, emoji: "😄" },
 ];
 
 /* ------------------------------------------------------------- utilidades */
@@ -327,8 +383,11 @@ export default function AppTreino() {
   const [sessao, setSessao] = useState(null);
   const [aviso, setAviso] = useState(null);
   const [videos, setVideos] = useState({}); // { [nomeExercicio]: url }
+  const [scores, setScores] = useState([]); // { data, timestamp, valor }
+  const [recuperacoes, setRecuperacoes] = useState([]); // dias de recuperação ativa concluídos
 
   const c = THEMES[tema];
+  const deload = useMemo(() => semanaDeload(hoje()), []);
 
   useEffect(() => {
     let d = null;
@@ -340,10 +399,12 @@ export default function AppTreino() {
     if (d) {
       setTreinos(d.treinos?.length ? d.treinos : TREINOS_PADRAO);
       setSeries(d.series || []);
-      setMarcos(d.marcos || []);
+      setMarcos(d.marcos?.length ? d.marcos : MARCOS_IMPORTADOS);
       setDescanso(d.descanso ?? 90);
       setSessao(d.sessao || null);
       setVideos(d.videos || {});
+      setScores(d.scores || []);
+      setRecuperacoes(d.recuperacoes || []);
       if (d.tema) setTema(d.tema);
     } else {
       setSeries(semear());
@@ -354,15 +415,15 @@ export default function AppTreino() {
 
   const salvar = useCallback(() => {
     const ok = storageSet(STORE_KEY, JSON.stringify({
-      treinos, series, marcos, descanso, sessao, tema, videos,
+      treinos, series, marcos, descanso, sessao, tema, videos, scores, recuperacoes,
     }));
     if (!ok) {
       setAviso("Não deu para salvar agora. Os dados seguem na tela até você fechar.");
       setTimeout(() => setAviso(null), 4000);
     }
-  }, [treinos, series, marcos, descanso, sessao, tema, videos]);
+  }, [treinos, series, marcos, descanso, sessao, tema, videos, scores, recuperacoes]);
 
-  useEffect(() => { if (!carregando) salvar(); }, [series, marcos, descanso, sessao, tema, treinos, videos, carregando]); // eslint-disable-line
+  useEffect(() => { if (!carregando) salvar(); }, [series, marcos, descanso, sessao, tema, treinos, videos, scores, recuperacoes, carregando]); // eslint-disable-line
 
   /* timer de descanso — baseado em timestamp real (Date.now()), não em
      contagem de ticks. Assim, se o navegador segurar/atrasar o
@@ -397,17 +458,26 @@ export default function AppTreino() {
     };
   }, [rodando]); // eslint-disable-line
 
-  const registrarSerie = ({ exercicio, reps, carga, obs, descansoEx }) => {
+  const registrarSerie = ({ exercicio, reps, carga, rir, obs, descansoEx }) => {
     const nSerie = series.filter(
       (s) => s.exercicio === exercicio && s.data.slice(0, 10) === hoje()
     ).length + 1;
     setSeries((a) => [...a, {
       id: uid(), data: new Date().toISOString(), treino: sessao.treino,
-      exercicio, serie: nSerie, reps, carga, obs: obs || "",
+      exercicio, serie: nSerie, reps, carga, rir: rir ?? null, obs: obs || "",
       status: "⏳ Em andamento", sincronizado: false,
     }]);
     setRestante(descansoEx || descanso);
     setRodando(true);
+
+    /* RIR 0 duas vezes seguidas no mesmo exercício = perto da falha */
+    if (rir === 0) {
+      const doExercicio = series.filter((s) => s.exercicio === exercicio).slice(-1)[0];
+      if (doExercicio && doExercicio.rir === 0) {
+        setAviso("⚠️ Você tá chegando perto de falha — cuidado com a forma");
+        setTimeout(() => setAviso(null), 5000);
+      }
+    }
   };
 
   /* corrige uma série já registrada hoje (ex.: errou a contagem de reps) */
@@ -417,6 +487,19 @@ export default function AppTreino() {
 
   const setVideo = (nomeExercicio, url) => {
     setVideos((v) => ({ ...v, [nomeExercicio]: url }));
+  };
+
+  const scoreHoje = useMemo(() => scores.find((s) => s.data === hoje()), [scores]);
+  const registrarBemEstar = (valor) => {
+    setScores((a) => [...a.filter((s) => s.data !== hoje()), { data: hoje(), timestamp: new Date().toISOString(), valor }]);
+  };
+
+  /* dia de recuperação ativa: registro simples (feito/não feito), não
+     entra em `series` nem conta como treino de força/hipertrofia */
+  const registrarRecuperacao = (idTreino) => {
+    setRecuperacoes((a) => [...a.filter((r) => !(r.treino === idTreino && r.data === hoje())), {
+      id: uid(), data: hoje(), treino: idTreino,
+    }]);
   };
 
   const encerrarSessao = () => {
@@ -471,21 +554,24 @@ export default function AppTreino() {
         )}
 
         {aba === "treinos" && (
-          <TelaTreinos c={c} treinos={treinos} ultimaVez={ultimaVez} sessao={sessao}
-            treinosEstaSemana={treinosEstaSemana} streak={streak}
-            iniciar={(t) => { setSessao({ treino: t.id, exercicio: t.exercicios[0].nome }); setAba("sessao"); }}
-            continuar={() => setAba("sessao")} />
+          scoreHoje
+            ? <TelaTreinos c={c} treinos={treinos} ultimaVez={ultimaVez} sessao={sessao} deload={deload}
+                treinosEstaSemana={treinosEstaSemana} streak={streak}
+                iniciar={(t) => { setSessao({ treino: t.id, exercicio: t.exercicios[0].nome }); setAba("sessao"); }}
+                continuar={() => setAba("sessao")} />
+            : <TelaBemEstar c={c} registrar={registrarBemEstar} />
         )}
 
         {aba === "sessao" && (
           sessao
-            ? <TelaSessao c={c} sessao={sessao} setSessao={setSessao} treinos={treinos}
+            ? <TelaSessao c={c} sessao={sessao} setSessao={setSessao} treinos={treinos} deload={deload}
                 series={series} registrar={registrarSerie} editar={editarSerie} encerrar={encerrarSessao}
-                videos={videos} setVideo={setVideo} />
+                videos={videos} setVideo={setVideo}
+                recuperacoes={recuperacoes} registrarRecuperacao={registrarRecuperacao} />
             : <Vazio c={c} texto="Nenhum treino em andamento." acao="Escolher treino" onAcao={() => setAba("treinos")} />
         )}
 
-        {aba === "historico" && <TelaHistorico c={c} series={series} treinos={treinos} />}
+        {aba === "historico" && <TelaHistorico c={c} series={series} treinos={treinos} scores={scores} />}
         {aba === "marcos" && <TelaMarcos c={c} marcos={marcos} setMarcos={setMarcos} />}
         {aba === "mais" && (
           <TelaMais c={c} series={series} setSeries={setSeries} descanso={descanso}
@@ -533,14 +619,53 @@ function BarraSuperior({ c, tema, setTema, sessao, aba }) {
   );
 }
 
+/* --------------------------------------------------- score de bem-estar
+   Tela obrigatória (uma vez por dia) antes do dashboard de treinos.    */
+
+function TelaBemEstar({ c, registrar }) {
+  const [valor, setValor] = useState(null);
+
+  return (
+    <div className="px-5 pt-10">
+      <div className="p-6 rounded-2xl text-center" style={{ background: c.surface, border: `1px solid ${c.line}` }}>
+        <p className="text-lg font-bold mb-1">Barra — Como está seu dia?</p>
+        <p className="text-sm mb-6" style={{ color: c.muted }}>Score de bem-estar (0-10)</p>
+
+        <div className="flex justify-between gap-1.5 mb-2">
+          {BEM_ESTAR_OPCOES.map((o) => (
+            <button key={o.valor} onClick={() => setValor(o.valor)}
+              className="flex-1 flex flex-col items-center gap-1.5 py-3 rounded-2xl"
+              style={{
+                background: valor === o.valor ? `${c.accent}22` : "transparent",
+                border: `1px solid ${valor === o.valor ? c.accent : "transparent"}`,
+              }}>
+              <span className="text-2xl">{o.emoji}</span>
+              <span className="text-xs font-semibold" style={{ color: valor === o.valor ? c.accent : c.muted, fontFamily: MONO }}>{o.valor}</span>
+            </button>
+          ))}
+        </div>
+
+        <p className="text-xs mb-6" style={{ color: c.muted }}>{valor === null ? "Selecione" : `Você selecionou ${valor}`}</p>
+
+        <button onClick={() => valor !== null && registrar(valor)} disabled={valor === null}
+          className="w-full py-4 rounded-2xl font-semibold text-lg"
+          style={{ background: c.accent, color: c.accentInk, opacity: valor === null ? 0.5 : 1 }}>
+          Continuar para treino
+        </button>
+      </div>
+    </div>
+  );
+}
+
 /* ------------------------------------------------------------ tela 1
    Dashboard — saudação + progresso semanal + busca + filtros + lista   */
 
-function WorkoutCard({ c, t, ultima, onStart }) {
+function WorkoutCard({ c, t, ultima, onStart, deload }) {
   const semRegistro = !ultima;
+  const restDay = deload && t.id === "C";
   return (
     <div className="w-full flex items-center gap-4 p-5 rounded-2xl text-left"
-      style={{ background: c.surface, border: `1px solid ${c.line}` }}>
+      style={{ background: c.surface, border: `1px solid ${restDay ? c.warn : c.line}` }}>
       <div className="w-16 h-16 rounded-2xl flex flex-col items-center justify-center shrink-0"
         style={{ background: `${c.accent}1A`, border: `1px solid ${c.accent}33` }}>
         <span className="text-2xl font-extrabold" style={{ fontFamily: MONO, color: c.accent }}>{t.id}</span>
@@ -548,8 +673,8 @@ function WorkoutCard({ c, t, ultima, onStart }) {
       </div>
       <div className="flex-1 min-w-0">
         <div className="font-semibold truncate text-base">{t.nome}</div>
-        <div className="text-sm mt-0.5" style={{ color: c.muted }}>
-          {t.exercicios.length} exercícios · {semRegistro ? "sem registro" : diasAtras(ultima)}
+        <div className="text-sm mt-0.5" style={{ color: restDay ? c.warn : c.muted }}>
+          {restDay ? "REST DAY · apenas alongamento e mobilidade" : `${t.exercicios.length} exercícios · ${semRegistro ? "sem registro" : diasAtras(ultima)}`}
         </div>
       </div>
       <button onClick={onStart}
@@ -561,7 +686,7 @@ function WorkoutCard({ c, t, ultima, onStart }) {
   );
 }
 
-function TelaTreinos({ c, treinos, ultimaVez, iniciar, sessao, continuar, treinosEstaSemana, streak }) {
+function TelaTreinos({ c, treinos, ultimaVez, iniciar, sessao, continuar, treinosEstaSemana, streak, deload }) {
   const [busca, setBusca] = useState("");
   const [filtro, setFiltro] = useState("todos");
 
@@ -591,6 +716,15 @@ function TelaTreinos({ c, treinos, ultimaVez, iniciar, sessao, continuar, treino
           <Bell size={18} />
         </button>
       </div>
+
+      {deload && (
+        <div className="p-5 rounded-2xl" style={{ background: `${c.warn}1A`, border: `1px solid ${c.warn}55` }}>
+          <p className="font-bold text-sm" style={{ color: c.warn }}>⚠️ SEMANA {deload.numero * 4} · DELOAD WEEK</p>
+          <p className="text-sm mt-1.5" style={{ color: c.ink }}>
+            Reduza todas as cargas em ~45-50%. Foco em recuperação e técnica.
+          </p>
+        </div>
+      )}
 
       <div className="p-5 rounded-2xl flex items-center gap-4" style={{ background: c.surface, border: `1px solid ${c.line}` }}>
         <div className="flex-1">
@@ -638,13 +772,13 @@ function TelaTreinos({ c, treinos, ultimaVez, iniciar, sessao, continuar, treino
       <div className="flex flex-col gap-4">
         {filtrados.length === 0 && (
           <Vazio c={c} texto={
-            filtro !== "todos" && filtro !== "flexibilidade"
-              ? "Nenhum treino desse tipo. O programa é focado em força — o cardio vem do handebol."
+            filtro !== "todos"
+              ? "Nenhum treino desse tipo. O cardio vem do handebol."
               : "Nenhum treino encontrado."
           } />
         )}
         {filtrados.map((t) => (
-          <WorkoutCard key={t.id} c={c} t={t} ultima={ultimaVez(t.id)} onStart={() => iniciar(t)} />
+          <WorkoutCard key={t.id} c={c} t={t} ultima={ultimaVez(t.id)} onStart={() => iniciar(t)} deload={deload} />
         ))}
       </div>
     </div>
@@ -653,11 +787,44 @@ function TelaTreinos({ c, treinos, ultimaVez, iniciar, sessao, continuar, treino
 
 /* ------------------------------------------------------------ tela 2 */
 
-function TelaSessao({ c, sessao, setSessao, treinos, series, registrar, editar, encerrar, videos, setVideo }) {
+/* dispatcher: escolhe a UI certa conforme o tipo do treino da sessão.
+   Fica fora do componente com hooks para nunca variar a ordem deles. */
+function TelaSessao(props) {
+  const { c, sessao, treinos, encerrar, deload, recuperacoes, registrarRecuperacao } = props;
   const treino = treinos.find((t) => t.id === sessao.treino);
+
+  /* dia de recuperação ativa: checklist simples, não conta como série */
+  if (treino.tipo === "recuperacao") {
+    return <TelaRecuperacao c={c} treino={treino} recuperacoes={recuperacoes}
+      registrarRecuperacao={registrarRecuperacao} encerrar={encerrar} />;
+  }
+
+  /* sexta (treino C) em semana de deload vira dia de descanso */
+  if (deload && treino.id === "C") {
+    return (
+      <div className="px-5 pt-6 space-y-5">
+        <div className="p-6 rounded-2xl text-center" style={{ background: `${c.warn}1A`, border: `1px solid ${c.warn}55` }}>
+          <p className="font-bold" style={{ color: c.warn }}>⚠️ SEMANA DE DELOAD</p>
+          <p className="text-lg font-bold mt-2">Hoje é REST DAY</p>
+          <p className="text-sm mt-2" style={{ color: c.muted }}>Apenas alongamento e mobilidade.</p>
+        </div>
+        <button onClick={encerrar} className="w-full py-3.5 rounded-2xl font-medium"
+          style={{ background: c.surface2, color: c.ink }}>
+          Encerrar sessão
+        </button>
+      </div>
+    );
+  }
+
+  return <TelaSessaoTreino {...props} treino={treino} />;
+}
+
+function TelaSessaoTreino({ c, sessao, setSessao, treino, series, registrar, editar, encerrar, videos, setVideo, deload }) {
   const ex = treino.exercicios.find((e) => e.nome === sessao.exercicio) || treino.exercicios[0];
+  const alvoAjustado = cargaComDeload(ex.alvo, deload);
   const [reps, setReps] = useState("");
   const [carga, setCarga] = useState("");
+  const [rir, setRir] = useState(null);
   const [obs, setObs] = useState("");
   const [erro, setErro] = useState("");
 
@@ -679,8 +846,9 @@ function TelaSessao({ c, sessao, setSessao, treinos, series, registrar, editar, 
   }, [series, ex.nome]);
 
   useEffect(() => {
-    setCarga(String(anterior ? anterior.carga : ex.alvo));
+    setCarga(String(anterior ? anterior.carga : alvoAjustado));
     setReps(String(parseInt(ex.reps, 10) || 10));
+    setRir(null);
     setErro("");
   }, [ex.nome]); // eslint-disable-line
 
@@ -689,9 +857,11 @@ function TelaSessao({ c, sessao, setSessao, treinos, series, registrar, editar, 
     if (!r || r < 1) return setErro("Coloque pelo menos 1 repetição.");
     if (isNaN(k) || k < 0) return setErro("A carga não pode ser negativa.");
     if (r > 120) return setErro("Mais de 120 reps? Confere esse número.");
+    if (rir === null && ex.rir) return setErro("Registre o RIR desta série (0-5).");
     setErro("");
-    registrar({ exercicio: ex.nome, reps: r, carga: k, obs, descansoEx: ex.descanso });
+    registrar({ exercicio: ex.nome, reps: r, carga: k, rir, obs, descansoEx: ex.descanso });
     setObs("");
+    setRir(null);
 
     /* completou as séries deste exercício? pula pro próximo que ainda falta */
     const totalAgora = feitasHoje.length + 1;
@@ -707,6 +877,12 @@ function TelaSessao({ c, sessao, setSessao, treinos, series, registrar, editar, 
 
   return (
     <div className="px-5 pt-6 space-y-5">
+      {deload && (
+        <div className="px-4 py-3 rounded-2xl text-sm" style={{ background: `${c.warn}1A`, border: `1px solid ${c.warn}55`, color: c.warn }}>
+          ⚠️ SEMANA DE DELOAD - Reduzir 50% de carga, focar em técnica e recuperação
+        </div>
+      )}
+
       <div>
         <div className="flex items-center justify-between mb-2.5">
           <p className="text-sm font-bold" style={{ color: c.ink }}>Treino {treino.id} · {treino.nome}</p>
@@ -743,11 +919,18 @@ function TelaSessao({ c, sessao, setSessao, treinos, series, registrar, editar, 
           <Selo c={c} status={ex.status} />
         </div>
 
-        <div className="flex gap-5 mt-4 text-sm" style={{ color: c.muted }}>
+        <div className="flex gap-5 mt-4 text-sm flex-wrap" style={{ color: c.muted }}>
           <span className="flex items-center gap-1.5"><List size={14} /><b style={{ color: c.ink, fontFamily: MONO }}>{ex.series}</b> séries</span>
           <span className="flex items-center gap-1.5"><Dumbbell size={14} /><b style={{ color: c.ink, fontFamily: MONO }}>{ex.reps}</b> reps</span>
           <span className="flex items-center gap-1.5"><Timer size={14} /><b style={{ color: c.ink, fontFamily: MONO }}>{mmss(ex.descanso)}</b></span>
+          {ex.rir && <span className="flex items-center gap-1.5">RIR alvo <b style={{ color: c.ink, fontFamily: MONO }}>{ex.rir}</b></span>}
         </div>
+
+        {deload && ex.alvo > 0 && (
+          <p className="text-sm mt-3 font-semibold" style={{ color: c.warn }}>
+            Carga de deload: ~{alvoAjustado} kg (alvo normal: {ex.alvo} kg{ex.porLado ? "/lado" : ""})
+          </p>
+        )}
 
         {ex.obs && <p className="text-sm mt-4" style={{ color: c.muted }}>{ex.obs}</p>}
 
@@ -763,6 +946,24 @@ function TelaSessao({ c, sessao, setSessao, treinos, series, registrar, editar, 
           <Stepper c={c} rotulo="Repetições" valor={reps} setValor={setReps} passo={1} min={0} />
           <Stepper c={c} rotulo="Carga (kg)" valor={carga} setValor={setCarga} passo={2.5} min={0} />
         </div>
+
+        {ex.rir !== null && (
+          <div className="mt-4">
+            <div className="text-xs uppercase tracking-widest mb-2" style={{ color: c.muted, fontFamily: MONO }}>
+              RIR desta série (0-5)
+            </div>
+            <div className="flex gap-2">
+              {RIR_OPCOES.map((v) => (
+                <button key={v} onClick={() => setRir(v)}
+                  className="flex-1 py-2.5 rounded-xl font-semibold"
+                  style={{
+                    background: rir === v ? c.accent : c.surface2, color: rir === v ? c.accentInk : c.ink,
+                    fontFamily: MONO,
+                  }}>{v}</button>
+              ))}
+            </div>
+          </div>
+        )}
 
         <input value={obs} onChange={(e) => setObs(e.target.value)}
           placeholder="Como foi a série? (opcional)"
@@ -799,6 +1000,48 @@ function TelaSessao({ c, sessao, setSessao, treinos, series, registrar, editar, 
   );
 }
 
+/* dia de recuperação ativa (sábado/domingo) — checklist simples, não
+   entra em `series`: só marca o dia como feito */
+function TelaRecuperacao({ c, treino, recuperacoes, registrarRecuperacao, encerrar }) {
+  const jaFeito = recuperacoes.some((r) => r.treino === treino.id && r.data === hoje());
+  return (
+    <div className="px-5 pt-6 space-y-5">
+      <div className="p-5 rounded-2xl" style={{ background: `${c.accent}1A`, border: `1px solid ${c.accent}40` }}>
+        <p className="font-bold" style={{ color: c.ink }}>{treino.nome} · {treino.dia}</p>
+        <p className="text-sm mt-1" style={{ color: c.muted }}>{treino.aviso} · {treino.duracao}</p>
+      </div>
+
+      <div className="space-y-3">
+        {treino.exercicios.map((e) => (
+          <div key={e.nome} className="p-5 rounded-2xl" style={{ background: c.surface, border: `1px solid ${c.line}` }}>
+            <p className="font-semibold">{e.nome}</p>
+            <p className="text-sm mt-1" style={{ color: c.muted }}>{e.reps}</p>
+            {e.obs && <p className="text-sm mt-1.5" style={{ color: c.muted }}>{e.obs}</p>}
+          </div>
+        ))}
+      </div>
+
+      {jaFeito ? (
+        <div className="w-full py-4 rounded-2xl font-semibold text-lg flex items-center justify-center gap-2"
+          style={{ background: c.ok + "22", color: c.ok }}>
+          <Check size={22} /> Recuperação de hoje concluída
+        </div>
+      ) : (
+        <button onClick={() => registrarRecuperacao(treino.id)}
+          className="w-full py-4 rounded-2xl font-semibold text-lg flex items-center justify-center gap-2"
+          style={{ background: c.accent, color: c.accentInk, boxShadow: `0 12px 24px -12px ${c.accent}80` }}>
+          <Check size={22} /> Concluir recuperação
+        </button>
+      )}
+
+      <button onClick={encerrar} className="w-full py-3.5 rounded-2xl font-medium"
+        style={{ background: c.surface2, color: c.ink }}>
+        Encerrar sessão
+      </button>
+    </div>
+  );
+}
+
 /* série já registrada hoje, com edição inline (corrigir reps/carga
    depois de errar a contagem) */
 function ItemSerieFeita({ c, s, onSalvar }) {
@@ -818,6 +1061,9 @@ function ItemSerieFeita({ c, s, onSalvar }) {
         <span className="text-sm" style={{ color: c.muted, fontFamily: MONO }}>série {s.serie}</span>
         <span className="flex items-center gap-2">
           <span className="font-semibold" style={{ fontFamily: MONO }}>{s.carga} kg × {s.reps}</span>
+          {(s.rir ?? null) !== null && (
+            <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ color: c.accent, background: `${c.accent}1A`, fontFamily: MONO }}>RIR {s.rir}</span>
+          )}
           <span className="text-xs" style={{ color: c.muted }}>editar</span>
         </span>
       </button>
@@ -893,7 +1139,7 @@ function LinkVideo({ c, nome, url, salvar }) {
 
 /* ------------------------------------------------------------ tela 3 */
 
-function TelaHistorico({ c, series }) {
+function TelaHistorico({ c, series, scores }) {
   const exercicios = useMemo(() => [...new Set(series.map((s) => s.exercicio))].sort(), [series]);
   const [sel, setSel] = useState("");
   const [aberto, setAberto] = useState(false);
@@ -912,6 +1158,35 @@ function TelaHistorico({ c, series }) {
     });
     return [...m.values()].sort((a, b) => a.data.localeCompare(b.data));
   }, [series, sel]);
+
+  /* RIR médio do exercício selecionado, últimas 4 semanas */
+  const rirStats = useMemo(() => {
+    const limite = new Date(hoje()); limite.setDate(limite.getDate() - 28);
+    const limiteIso = limite.toISOString().slice(0, 10);
+    const recentes = series.filter((s) => s.exercicio === sel && s.data.slice(0, 10) >= limiteIso && (s.rir ?? null) !== null);
+    if (!recentes.length) return null;
+    const media = recentes.reduce((a, s) => a + s.rir, 0) / recentes.length;
+    const metade = Math.floor(recentes.length / 2) || 1;
+    const antiga = recentes.slice(0, metade).reduce((a, s) => a + s.rir, 0) / metade;
+    const nova = recentes.slice(-metade).reduce((a, s) => a + s.rir, 0) / metade;
+    const tendencia = nova > antiga + 0.3 ? "↑" : nova < antiga - 0.3 ? "↓" : "→";
+    const rotulo = media <= 1.5 ? "ótimo (perto da falha)" : media <= 2.5 ? "bom" : "conservador";
+    return { media: media.toFixed(1), tendencia, rotulo, n: recentes.length };
+  }, [series, sel]);
+
+  /* score de bem-estar x nº de séries completadas no dia */
+  const scorePerformance = useMemo(() => {
+    if (!scores?.length) return [];
+    const porDiaTodos = new Map();
+    series.forEach((s) => {
+      const d = s.data.slice(0, 10);
+      porDiaTodos.set(d, (porDiaTodos.get(d) || 0) + 1);
+    });
+    return [...scores]
+      .sort((a, b) => b.data.localeCompare(a.data))
+      .slice(0, 10)
+      .map((sc) => ({ data: sc.data, valor: sc.valor, series: porDiaTodos.get(sc.data) || 0 }));
+  }, [scores, series]);
 
   if (!series.length) return <Vazio c={c} texto="Seu histórico aparece aqui depois da primeira série registrada." />;
 
@@ -994,6 +1269,37 @@ function TelaHistorico({ c, series }) {
           </div>
         ))}
       </div>
+
+      {rirStats && (
+        <div className="p-6 rounded-2xl" style={{ background: c.surface, border: `1px solid ${c.line}` }}>
+          <div className="text-xs uppercase tracking-widest mb-4" style={{ color: c.muted, fontFamily: MONO }}>
+            RIR médio · últimas 4 semanas
+          </div>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-2xl font-bold" style={{ fontFamily: MONO, color: c.accent }}>{rirStats.media}</p>
+              <p className="text-sm" style={{ color: c.muted }}>{rirStats.rotulo} · {rirStats.n} séries</p>
+            </div>
+            <div className="text-2xl font-bold" style={{ fontFamily: MONO, color: c.muted }}>{rirStats.tendencia}</div>
+          </div>
+        </div>
+      )}
+
+      {scorePerformance.length > 0 && (
+        <div className="rounded-2xl overflow-hidden" style={{ background: c.surface, border: `1px solid ${c.line}` }}>
+          <div className="px-5 py-4" style={{ borderBottom: `1px solid ${c.line}` }}>
+            <p className="text-xs uppercase tracking-widest" style={{ color: c.muted, fontFamily: MONO }}>score x performance</p>
+            <p className="text-xs mt-1" style={{ color: c.muted }}>bem-estar do dia × séries completadas</p>
+          </div>
+          {scorePerformance.map((d) => (
+            <div key={d.data} className="grid grid-cols-3 px-5 py-3.5 text-sm" style={{ fontFamily: MONO, borderBottom: `1px solid ${c.line}` }}>
+              <span>{dataBR(d.data)}</span>
+              <span className="text-center" style={{ color: c.accent }}>score {d.valor}</span>
+              <span className="text-right" style={{ color: c.muted }}>{d.series} séries</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -1136,7 +1442,7 @@ function TelaMarcos({ c, marcos, setMarcos }) {
 
 /* ------------------------------------------- calculadora + planilha */
 
-const COLUNAS = ["Data", "Treino", "Exercício", "Série", "Repetições", "Carga (kg)", "Observações", "Status"];
+const COLUNAS = ["Data", "Treino", "Exercício", "Série", "Repetições", "Carga (kg)", "RIR", "Observações", "Status"];
 
 function plateBreakdown(perSideKg) {
   const chapas = [25, 20, 15, 10, 5, 2.5, 1.25];
@@ -1176,7 +1482,7 @@ function TelaMais({ c, series, setSeries, descanso, setDescanso }) {
   const fillPct = Math.round(((alvo - 20) / (140 - 20)) * 100);
 
   const linhas = (lista) => lista.map((s) => [
-    dataBR(s.data), s.treino, s.exercicio, s.serie, s.reps, s.carga, s.obs, s.status,
+    dataBR(s.data), s.treino, s.exercicio, s.serie, s.reps, s.carga, s.rir ?? "", s.obs, s.status,
   ]);
 
   const pendentes = series.filter((s) => !s.sincronizado);
@@ -1206,7 +1512,7 @@ function TelaMais({ c, series, setSeries, descanso, setDescanso }) {
   const copiarPendentes = async () => {
     if (!pendentes.length) return setStatusEnvio("Tudo já está na planilha.");
     const tsv = pendentes.map((s) => [
-      dataBR(s.data), s.treino, s.exercicio, s.serie, s.reps, s.carga, s.obs, s.status, s.id,
+      dataBR(s.data), s.treino, s.exercicio, s.serie, s.reps, s.carga, s.rir ?? "", s.obs, s.status, s.id,
     ].join("\t")).join("\n");
     setEnviando(true);
     try {
