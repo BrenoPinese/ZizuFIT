@@ -376,7 +376,10 @@ export default function AppTreino() {
   const [tema, setTema] = useState("dark");
   const [aba, setAba] = useState("treinos");
   const [carregando, setCarregando] = useState(true);
-  const [treinos, setTreinos] = useState(TREINOS_PADRAO);
+  /* o programa de treino é fixo (vem do código) — nunca é lido nem salvo
+     no localStorage, então uma mudança no programa sempre chega pra
+     quem já usava o app, sem precisar limpar o cache do navegador */
+  const treinos = TREINOS_PADRAO;
   const [series, setSeries] = useState([]);
   const [marcos, setMarcos] = useState([]);
   const [descanso, setDescanso] = useState(90);
@@ -397,15 +400,22 @@ export default function AppTreino() {
     } catch { /* primeira execução */ }
 
     if (d) {
-      setTreinos(d.treinos?.length ? d.treinos : TREINOS_PADRAO);
+      /* O programa de treino (TREINOS_PADRAO) vem sempre do código, nunca
+         do cache salvo no navegador — assim uma atualização do programa
+         (like a virada pro DUP) chega pra quem já usava o app, sem ficar
+         preso numa "foto" antiga salva localmente. O histórico do usuário
+         (séries, marcos, scores etc.) continua vindo do cache normalmente. */
       setSeries(d.series || []);
       setMarcos(d.marcos?.length ? d.marcos : MARCOS_IMPORTADOS);
       setDescanso(d.descanso ?? 90);
-      setSessao(d.sessao || null);
       setVideos(d.videos || {});
       setScores(d.scores || []);
       setRecuperacoes(d.recuperacoes || []);
       if (d.tema) setTema(d.tema);
+      /* sessão em andamento só é restaurada se o treino/exercício ainda
+         existir no programa atual — evita crash quando o programa mudou */
+      const treinoValido = d.sessao && TREINOS_PADRAO.find((t) => t.id === d.sessao.treino);
+      setSessao(treinoValido ? d.sessao : null);
     } else {
       setSeries(semear());
       setMarcos(MARCOS_IMPORTADOS);
@@ -415,15 +425,15 @@ export default function AppTreino() {
 
   const salvar = useCallback(() => {
     const ok = storageSet(STORE_KEY, JSON.stringify({
-      treinos, series, marcos, descanso, sessao, tema, videos, scores, recuperacoes,
+      series, marcos, descanso, sessao, tema, videos, scores, recuperacoes,
     }));
     if (!ok) {
       setAviso("Não deu para salvar agora. Os dados seguem na tela até você fechar.");
       setTimeout(() => setAviso(null), 4000);
     }
-  }, [treinos, series, marcos, descanso, sessao, tema, videos, scores, recuperacoes]);
+  }, [series, marcos, descanso, sessao, tema, videos, scores, recuperacoes]);
 
-  useEffect(() => { if (!carregando) salvar(); }, [series, marcos, descanso, sessao, tema, treinos, videos, scores, recuperacoes, carregando]); // eslint-disable-line
+  useEffect(() => { if (!carregando) salvar(); }, [series, marcos, descanso, sessao, tema, videos, scores, recuperacoes, carregando]); // eslint-disable-line
 
   /* timer de descanso — baseado em timestamp real (Date.now()), não em
      contagem de ticks. Assim, se o navegador segurar/atrasar o
@@ -502,12 +512,26 @@ export default function AppTreino() {
     }]);
   };
 
+  /* score de bem-estar é pedido no FINAL do treino, não antes de começar */
+  const [aguardandoBemEstar, setAguardandoBemEstar] = useState(false);
+
   const encerrarSessao = () => {
     setSeries((a) => a.map((s) => (s.status === "⏳ Em andamento" ? { ...s, status: "✅ Completo" } : s)));
     setSessao(null);
     setRodando(false);
     setRestante(0);
     setAba("historico");
+  };
+
+  const pedirEncerrar = () => {
+    if (scoreHoje) { encerrarSessao(); return; }
+    setAguardandoBemEstar(true);
+  };
+
+  const concluirComBemEstar = (valor) => {
+    registrarBemEstar(valor);
+    setAguardandoBemEstar(false);
+    encerrarSessao();
   };
 
   const ultimaVez = (idTreino) => {
@@ -553,22 +577,26 @@ export default function AppTreino() {
           <div className="mx-5 mt-4 mb-1 px-4 py-3 rounded-2xl text-sm" style={{ background: c.surface2 }}>{aviso}</div>
         )}
 
-        {aba === "treinos" && (
-          scoreHoje
-            ? <TelaTreinos c={c} treinos={treinos} ultimaVez={ultimaVez} sessao={sessao} deload={deload}
+        {aguardandoBemEstar ? (
+          <TelaBemEstar c={c} registrar={concluirComBemEstar} finalDoTreino />
+        ) : (
+          <>
+            {aba === "treinos" && (
+              <TelaTreinos c={c} treinos={treinos} ultimaVez={ultimaVez} sessao={sessao} deload={deload}
                 treinosEstaSemana={treinosEstaSemana} streak={streak}
                 iniciar={(t) => { setSessao({ treino: t.id, exercicio: t.exercicios[0].nome }); setAba("sessao"); }}
                 continuar={() => setAba("sessao")} />
-            : <TelaBemEstar c={c} registrar={registrarBemEstar} />
-        )}
+            )}
 
-        {aba === "sessao" && (
-          sessao
-            ? <TelaSessao c={c} sessao={sessao} setSessao={setSessao} treinos={treinos} deload={deload}
-                series={series} registrar={registrarSerie} editar={editarSerie} encerrar={encerrarSessao}
-                videos={videos} setVideo={setVideo}
-                recuperacoes={recuperacoes} registrarRecuperacao={registrarRecuperacao} />
-            : <Vazio c={c} texto="Nenhum treino em andamento." acao="Escolher treino" onAcao={() => setAba("treinos")} />
+            {aba === "sessao" && (
+              sessao
+                ? <TelaSessao c={c} sessao={sessao} setSessao={setSessao} treinos={treinos} deload={deload}
+                    series={series} registrar={registrarSerie} editar={editarSerie} encerrar={pedirEncerrar}
+                    videos={videos} setVideo={setVideo}
+                    recuperacoes={recuperacoes} registrarRecuperacao={registrarRecuperacao} />
+                : <Vazio c={c} texto="Nenhum treino em andamento." acao="Escolher treino" onAcao={() => setAba("treinos")} />
+            )}
+          </>
         )}
 
         {aba === "historico" && <TelaHistorico c={c} series={series} treinos={treinos} scores={scores} />}
@@ -622,13 +650,13 @@ function BarraSuperior({ c, tema, setTema, sessao, aba }) {
 /* --------------------------------------------------- score de bem-estar
    Tela obrigatória (uma vez por dia) antes do dashboard de treinos.    */
 
-function TelaBemEstar({ c, registrar }) {
+function TelaBemEstar({ c, registrar, finalDoTreino }) {
   const [valor, setValor] = useState(null);
 
   return (
     <div className="px-5 pt-10">
       <div className="p-6 rounded-2xl text-center" style={{ background: c.surface, border: `1px solid ${c.line}` }}>
-        <p className="text-lg font-bold mb-1">Barra — Como está seu dia?</p>
+        <p className="text-lg font-bold mb-1">{finalDoTreino ? "Barra — Como foi o treino de hoje?" : "Barra — Como está seu dia?"}</p>
         <p className="text-sm mb-6" style={{ color: c.muted }}>Score de bem-estar (0-10)</p>
 
         <div className="flex justify-between gap-1.5 mb-2">
@@ -650,7 +678,7 @@ function TelaBemEstar({ c, registrar }) {
         <button onClick={() => valor !== null && registrar(valor)} disabled={valor === null}
           className="w-full py-4 rounded-2xl font-semibold text-lg"
           style={{ background: c.accent, color: c.accentInk, opacity: valor === null ? 0.5 : 1 }}>
-          Continuar para treino
+          {finalDoTreino ? "Concluir treino" : "Continuar para treino"}
         </button>
       </div>
     </div>
