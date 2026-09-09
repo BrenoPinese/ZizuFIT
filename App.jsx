@@ -36,6 +36,35 @@ const MONO = '"IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace';
 const SANS = '"IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif';
 const STORE_KEY = "treino:v2";
 
+/* --------------------------------------------------- persistência robusta
+   O app já perdeu dados por depender só de window.storage, que em alguns
+   ambientes não persiste entre recarregamentos. Agora grava em
+   window.storage E em localStorage, e na leitura usa o que estiver mais
+   recente (campo salvoEm). Só re-semeia se AMBOS estiverem vazios. */
+
+async function lerBruto() {
+  const achados = [];
+  try {
+    const r = await window.storage?.get?.(STORE_KEY);
+    if (r?.value) achados.push(JSON.parse(r.value));
+  } catch { /* sem window.storage */ }
+  try {
+    const raw = window.localStorage?.getItem(STORE_KEY);
+    if (raw) achados.push(JSON.parse(raw));
+  } catch { /* sem localStorage */ }
+  if (!achados.length) return null;
+  achados.sort((a, b) => (b?.salvoEm || 0) - (a?.salvoEm || 0));
+  return achados[0];
+}
+
+async function gravarBruto(obj) {
+  const payload = JSON.stringify({ ...obj, salvoEm: Date.now() });
+  let ok = false;
+  try { await window.storage?.set?.(STORE_KEY, payload); ok = true; } catch { /* ignore */ }
+  try { window.localStorage?.setItem(STORE_KEY, payload); ok = true; } catch { /* ignore */ }
+  return ok;
+}
+
 /* --------------------------------------------------- programa do Breno
    Split Superior/Inferior 2x/semana por grupo, ajustado ao handebol de
    terça e quinta. Cargas de polia/máquina já convertidas em kg (anilha
@@ -351,11 +380,7 @@ export default function AppTreino() {
 
   useEffect(() => {
     (async () => {
-      let d = null;
-      try {
-        const r = await window.storage.get(STORE_KEY);
-        if (r?.value) d = JSON.parse(r.value);
-      } catch { /* primeira execução */ }
+      const d = await lerBruto();
 
       if (d) {
         setTreinos(d.treinos?.length ? d.treinos : TREINOS_PADRAO);
@@ -488,16 +513,17 @@ export default function AppTreino() {
     };
   }, [sessao, fimEm, pausadoEm]);
 
+  const [semPersistencia, setSemPersistencia] = useState(false);
+  const [ultimoSalvo, setUltimoSalvo] = useState(0);
+
   const salvar = useCallback(async () => {
-    try {
-      await window.storage.set(STORE_KEY, JSON.stringify({
-        treinos, series, marcos, conclusoes, descanso, sessao, tema,
-        fimEm, pausadoEm, totalDescanso,
-      }));
-    } catch {
-      mostrarAviso("Não deu para salvar agora. Os dados seguem na tela até você fechar.");
-    }
-  }, [treinos, series, marcos, conclusoes, descanso, sessao, tema, fimEm, pausadoEm, totalDescanso, mostrarAviso]);
+    const ok = await gravarBruto({
+      treinos, series, marcos, conclusoes, descanso, sessao, tema,
+      fimEm, pausadoEm, totalDescanso,
+    });
+    setSemPersistencia(!ok);
+    if (ok) setUltimoSalvo(Date.now());
+  }, [treinos, series, marcos, conclusoes, descanso, sessao, tema, fimEm, pausadoEm, totalDescanso]);
 
   useEffect(() => { if (!carregando) salvar(); }, [series, marcos, conclusoes, descanso, sessao, tema, treinos, fimEm, pausadoEm, carregando]); // eslint-disable-line
 
@@ -651,7 +677,15 @@ export default function AppTreino() {
 
       <div className="max-w-md mx-auto pb-40">
         <Topo c={c} tema={tema} setTema={setTema} sessao={sessao} progresso={progressoSemanal}
+          ultimoSalvo={ultimoSalvo}
           onExportar={exportarDados} onImportar={() => importInput.current?.click()} />
+
+        {semPersistencia && (
+          <div className="mx-4 mb-3 px-3 py-2.5 rounded-xl text-sm font-medium" style={{ background: c.pr, color: "#fff" }}>
+            Não estou conseguindo salvar neste dispositivo. Toque no menu ⋮ →{" "}
+            <b>Exportar backup</b> agora e evite recarregar a página.
+          </div>
+        )}
 
         {aviso && (
           <div className="mx-4 mb-3 px-3 py-2 rounded-xl text-sm" style={{ background: c.surface2 }}>{aviso}</div>
@@ -715,8 +749,14 @@ function AnelSemana({ c, feitos, meta, size = 20, stroke = 3 }) {
   );
 }
 
-function Topo({ c, tema, setTema, sessao, progresso, onExportar, onImportar }) {
+function Topo({ c, tema, setTema, sessao, progresso, ultimoSalvo, onExportar, onImportar }) {
   const [menu, setMenu] = useState(false);
+  const salvoTxt = ultimoSalvo
+    ? (() => {
+        const s = Math.round((Date.now() - ultimoSalvo) / 1000);
+        return s < 5 ? "salvo agora" : s < 60 ? `salvo há ${s}s` : `salvo às ${new Date(ultimoSalvo).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`;
+      })()
+    : "ainda não salvo";
   return (
     <header className="flex items-end justify-between px-4 pb-4 relative"
       style={{ paddingTop: "max(1.5rem, env(safe-area-inset-top))" }}>
@@ -755,6 +795,9 @@ function Topo({ c, tema, setTema, sessao, progresso, onExportar, onImportar }) {
               style={{ color: c.ink, borderTop: `1px solid ${c.line}` }}>
               <Upload size={16} /> Importar backup
             </button>
+            <div className="px-3 py-2 text-[11px]" style={{ color: c.muted, borderTop: `1px solid ${c.line}`, fontFamily: MONO }}>
+              {salvoTxt}
+            </div>
           </div>
         </>
       )}
