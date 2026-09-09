@@ -5,6 +5,7 @@ import {
 import {
   Dumbbell, History, CalendarDays, Play, Check, Plus, Minus,
   ChevronLeft, ChevronRight, Timer, Sun, Moon, X, Flag, Video, Flame, Info,
+  Trash2, ArrowRight,
 } from "lucide-react";
 
 /* ---------------------------------------------------------------- tokens
@@ -157,6 +158,7 @@ const HISTORICO_IMPORTADO = [
   ["2026-08-03", "A", "Rosca Direta (Barra W)", [[12, 7], [11, 7], [10, 7]]],
   ["2026-08-03", "A", "Rosca Martelo", [[12, 6], [12, 6], [11, 6]]],
   ["2026-08-03", "A", "Abdominal Prancha", [[50, 0], [50, 0], [50, 0]]],
+
   ["2026-08-05", "C", "Elevação Lateral com Halteres", [[12, 9], [12, 9], [12, 9], [10, 9]]],
   ["2026-08-05", "C", "Crucifixo Invertido com Halteres", [[15, 5], [14, 5], [13, 5], [12, 5]]],
   ["2026-08-05", "C", "Encolhimento de Ombros", [[12, 24], [12, 24], [12, 24], [12, 24]]],
@@ -219,21 +221,37 @@ const FINISHER_HIIT = {
   duracao: "10-15 min",
   formato: "Circuito metabólico: 40s de esforço / 20s de descanso, 4-5 exercícios em sequência, 3-4 voltas.",
   exercicios: ["Polichinelo", "Mountain climber", "Agachamento com salto (ou sem salto, se joelho pedir)", "Corda naval / burpee sem salto", "Prancha com toque no ombro"],
-  obs: "Opcional — use se quiser variar em vez do LISS de vez em quando, não como item extra na mesma sessão.",
+  obs: "Op ional — use se quiser variar em vez do LISS de vez em quando, não como item extra na mesma sessão.",
 };
+
 /* ------------------------------------------------------------- utilidades */
 
-const hoje = () => new Date().toISOString().slice(0, 10);
+const pad2 = (n) => String(n).padStart(2, "0");
+
+/* Data local no formato yyyy-mm-dd. Aceita Date, timestamp ISO completo ou
+   já uma string yyyy-mm-dd (que devolve inalterada). É o que corrige o bug
+   de "treino não contou": antes o app usava toISOString(), que converte pra
+   UTC — treino feito à noite no Brasil (UTC-3) caía no dia seguinte e saía
+   da semana / do "hoje". Agora tudo que agrupa por dia passa por aqui. */
+function diaLocal(d = new Date()) {
+  if (typeof d === "string") {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(d)) return d;
+    d = new Date(d);
+  }
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+}
+
+const hoje = () => diaLocal();
 const uid = () => Math.random().toString(36).slice(2, 10);
 
 function dataBR(iso) {
   if (!iso) return "—";
-  const [a, m, d] = iso.slice(0, 10).split("-");
+  const [a, m, d] = diaLocal(iso).split("-");
   return `${d}/${m}/${a}`;
 }
 
 function diasAtras(iso) {
-  const dif = Math.floor((new Date(hoje()) - new Date(iso.slice(0, 10))) / 86400000);
+  const dif = Math.floor((new Date(diaLocal()) - new Date(diaLocal(iso))) / 86400000);
   if (dif <= 0) return "hoje";
   if (dif === 1) return "ontem";
   return `há ${dif} dias`;
@@ -248,18 +266,48 @@ function chave(texto) {
     .replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
 
-/* Início da semana corrente (segunda-feira, 00:00 local), em ISO yyyy-mm-dd.
-   Usada para o progresso semanal — sempre calculada a partir da data de
-   hoje, nunca guardada num contador à parte, pra nunca ficar "presa" numa
-   semana antiga. */
+function nomeCurto(n) {
+  return n.split(" ").slice(0, 2).join(" ");
+}
+
+/* Bip curto via WebAudio — o vibrate sozinho falha em muito aparelho
+   (iOS não suporta, Android às vezes bloqueia). Como o timer de descanso
+   só começa depois de um toque do usuário ("Registrar série"), o contexto
+   de áudio já está liberado quando o alarme dispara. */
+function bip() {
+  try {
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return;
+    const ac = new Ctx();
+    const tocar = (freq, t0, dur) => {
+      const o = ac.createOscillator(), g = ac.createGain();
+      o.connect(g); g.connect(ac.destination);
+      o.type = "sine"; o.frequency.value = freq;
+      g.gain.setValueAtTime(0.0001, ac.currentTime + t0);
+      g.gain.exponentialRampToValueAtTime(0.35, ac.currentTime + t0 + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + t0 + dur);
+      o.start(ac.currentTime + t0);
+      o.stop(ac.currentTime + t0 + dur + 0.02);
+    };
+    tocar(880, 0, 0.18);
+    tocar(1174, 0.22, 0.28);
+    setTimeout(() => { try { ac.close(); } catch {} }, 900);
+  } catch { /* sem áudio, tudo bem */ }
+}
+
+/* Início da semana corrente (segunda-feira, 00:00 local), em yyyy-mm-dd
+   local. Sempre calculada a partir de hoje, nunca guardada num contador —
+   pra nunca ficar "presa" numa semana antiga. */
 function inicioSemanaISO() {
   const d = new Date();
   const diaSemana = d.getDay(); // 0 = domingo
   const offset = diaSemana === 0 ? 6 : diaSemana - 1; // dias desde a última segunda
   d.setDate(d.getDate() - offset);
   d.setHours(0, 0, 0, 0);
-  return d.toISOString().slice(0, 10);
+  return diaLocal(d);
 }
+
+const DOW = { "Domingo": 0, "Segunda": 1, "Terça": 2, "Quarta": 3, "Quinta": 4, "Sexta": 5, "Sábado": 6 };
 
 /* Estas séries já foram enviadas para a planilha, com estes mesmos ids —
    por isso nascem marcadas como sincronizadas e não duplicam lá. */
@@ -287,12 +335,18 @@ export default function AppTreino() {
   const [treinos, setTreinos] = useState(TREINOS_PADRAO);
   const [series, setSeries] = useState([]);
   const [marcos, setMarcos] = useState([]);
+  const [conclusoes, setConclusoes] = useState([]); // [{ id, data (yyyy-mm-dd local), treino, parcial, autoFinalizado }]
   const [descanso, setDescanso] = useState(90);
   const [sessao, setSessao] = useState(null);
   const [aviso, setAviso] = useState(null);
-  const [treinoFinalizado, setTreinoFinalizado] = useState(null);
+  const [treinoFinalizado, setTreinoFinalizado] = useState(null); // { treino, auto, parcial } | null
 
   const c = THEMES[tema];
+
+  const mostrarAviso = useCallback((txt, ms = 4000) => {
+    setAviso(txt);
+    if (ms) setTimeout(() => setAviso(null), ms);
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -304,89 +358,240 @@ export default function AppTreino() {
 
       if (d) {
         setTreinos(d.treinos?.length ? d.treinos : TREINOS_PADRAO);
-        setSeries(d.series || []);
         setMarcos(d.marcos || []);
         setDescanso(d.descanso ?? 90);
-        setSessao(d.sessao || null);
         if (d.tema) setTema(d.tema);
+        else if (window.matchMedia?.("(prefers-color-scheme: light)").matches) setTema("light");
+
+        let seriesCarregadas = d.series || [];
+        let conclusoesCarregadas = d.conclusoes || [];
+        let sessaoCarregada = d.sessao || null;
+
+        /* Auto-finaliza sessão que ficou aberta de um dia anterior:
+           marca as séries em andamento como completas e registra o treino
+           como feito naquele dia (parcial). Corrige o caso "treinei mas
+           esqueci de encerrar e não contou". */
+        if (sessaoCarregada) {
+          const emAndamento = seriesCarregadas.filter(
+            (s) => s.treino === sessaoCarregada.treino && s.status === "⏳ Em andamento"
+          );
+          const ultimoDia = emAndamento.map((s) => diaLocal(s.data)).sort().at(-1);
+          if (ultimoDia && ultimoDia < diaLocal()) {
+            seriesCarregadas = seriesCarregadas.map((s) =>
+              s.status === "⏳ Em andamento" ? { ...s, status: "✅ Completo" } : s
+            );
+            const jaTem = conclusoesCarregadas.some(
+              (x) => x.data === ultimoDia && x.treino === sessaoCarregada.treino
+            );
+            if (!jaTem) {
+              conclusoesCarregadas = [
+                ...conclusoesCarregadas,
+                { id: uid(), data: ultimoDia, treino: sessaoCarregada.treino, parcial: true, autoFinalizado: true },
+              ];
+            }
+            mostrarAviso(`Treino ${sessaoCarregada.treino} de ${dataBR(ultimoDia)} foi finalizado automaticamente — tinha ficado aberto.`, 6000);
+            sessaoCarregada = null;
+          }
+        }
+
+        setSeries(seriesCarregadas);
+        setConclusoes(conclusoesCarregadas);
+        setSessao(sessaoCarregada);
+
+        /* restaura o timer de descanso se a página recarregou no meio */
+        if (d.fimEm) {
+          if (d.pausadoEm) {
+            setFimEm(d.fimEm); setPausadoEm(d.pausadoEm);
+            setTotalDescanso(d.totalDescanso || (d.descanso ?? 90));
+          } else if (d.fimEm > Date.now()) {
+            setFimEm(d.fimEm);
+            setTotalDescanso(d.totalDescanso || (d.descanso ?? 90));
+          }
+        }
       } else {
         setSeries(semear());
         setMarcos(MARCOS_IMPORTADOS);
+        if (window.matchMedia?.("(prefers-color-scheme: light)").matches) setTema("light");
       }
       setCarregando(false);
     })();
+  }, []); // eslint-disable-line
+
+  /* timer de descanso — baseado em relógio de parede (timestamp alvo),
+     não em contagem de ticks. Assim ele não "para" quando a tela bloqueia
+     ou o app vai pra segundo plano: ao voltar, recalcula pelo Date.now().  */
+  const [fimEm, setFimEm] = useState(0);          // epoch ms do fim; 0 = inativo
+  const [pausadoEm, setPausadoEm] = useState(0);  // epoch ms de quando pausou; 0 = correndo
+  const [totalDescanso, setTotalDescanso] = useState(90);
+  const [restante, setRestante] = useState(0);
+  const [alarme, setAlarme] = useState(false);
+  const alarmeRef = useRef(false);
+
+  const dispararAlarme = useCallback(() => {
+    if (alarmeRef.current) return;
+    alarmeRef.current = true;
+    setAlarme(true);
+    try { navigator.vibrate?.([200, 100, 200, 100, 400]); } catch {}
+    bip();
   }, []);
+
+  const iniciarDescanso = useCallback((seg) => {
+    alarmeRef.current = false;
+    setAlarme(false);
+    setTotalDescanso(seg);
+    setPausadoEm(0);
+    setFimEm(Date.now() + seg * 1000);
+    setRestante(seg);
+  }, []);
+
+  const fecharDescanso = useCallback(() => {
+    alarmeRef.current = false;
+    setAlarme(false);
+    setFimEm(0); setPausadoEm(0); setRestante(0);
+  }, []);
+
+  const alternarDescanso = useCallback(() => {
+    setPausadoEm((p) => {
+      if (p) { setFimEm((f) => f + (Date.now() - p)); return 0; }
+      return Date.now();
+    });
+  }, []);
+
+  const maisDescanso = useCallback((seg = 15) => {
+    alarmeRef.current = false;
+    setAlarme(false);
+    setFimEm((f) => (f || Date.now()) + seg * 1000);
+  }, []);
+
+  useEffect(() => {
+    if (!fimEm || pausadoEm) return;
+    const upd = () => {
+      const r = Math.max(0, Math.round((fimEm - Date.now()) / 1000));
+      setRestante(r);
+      if (r <= 0) dispararAlarme();
+    };
+    upd();
+    const iv = setInterval(upd, 500);
+    const onVis = () => { if (document.visibilityState === "visible") upd(); };
+    document.addEventListener("visibilitychange", onVis);
+    window.addEventListener("focus", onVis);
+    return () => {
+      clearInterval(iv);
+      document.removeEventListener("visibilitychange", onVis);
+      window.removeEventListener("focus", onVis);
+    };
+  }, [fimEm, pausadoEm, dispararAlarme]);
+
+  /* mantém a tela acesa enquanto o descanso corre (best-effort) — ajuda
+     tanto o timer quanto a não perder o ritmo entre séries */
+  useEffect(() => {
+    const ativo = fimEm > 0 && !pausadoEm;
+    if (!ativo || !("wakeLock" in navigator)) return;
+    let lock = null;
+    const pedir = () => {
+      navigator.wakeLock.request("screen").then((l) => { lock = l; }).catch(() => {});
+    };
+    pedir();
+    const onVis = () => { if (document.visibilityState === "visible") pedir(); };
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      document.removeEventListener("visibilitychange", onVis);
+      if (lock) lock.release().catch(() => {});
+    };
+  }, [fimEm, pausadoEm]);
 
   const salvar = useCallback(async () => {
     try {
       await window.storage.set(STORE_KEY, JSON.stringify({
-        treinos, series, marcos, descanso, sessao, tema,
+        treinos, series, marcos, conclusoes, descanso, sessao, tema,
+        fimEm, pausadoEm, totalDescanso,
       }));
     } catch {
-      setAviso("Não deu para salvar agora. Os dados seguem na tela até você fechar.");
-      setTimeout(() => setAviso(null), 4000);
+      mostrarAviso("Não deu para salvar agora. Os dados seguem na tela até você fechar.");
     }
-  }, [treinos, series, marcos, descanso, sessao, tema]);
+  }, [treinos, series, marcos, conclusoes, descanso, sessao, tema, fimEm, pausadoEm, totalDescanso, mostrarAviso]);
 
-  useEffect(() => { if (!carregando) salvar(); }, [series, marcos, descanso, sessao, tema, treinos, carregando]); // eslint-disable-line
+  useEffect(() => { if (!carregando) salvar(); }, [series, marcos, conclusoes, descanso, sessao, tema, treinos, fimEm, pausadoEm, carregando]); // eslint-disable-line
 
-  /* timer de descanso */
-  const [restante, setRestante] = useState(0);
-  const [rodando, setRodando] = useState(false);
-  const tick = useRef(null);
-
-  useEffect(() => {
-    if (!rodando) return;
-    tick.current = setInterval(() => {
-      setRestante((s) => {
-        if (s <= 1) {
-          setRodando(false);
-          if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
-          return 0;
-        }
-        return s - 1;
-      });
-    }, 1000);
-    return () => clearInterval(tick.current);
-  }, [rodando]);
+  const seriesFeitas = useCallback(
+    (exNome, exceto) => series.filter(
+      (s) => s.exercicio === exNome && diaLocal(s.data) === hoje() && s.id !== exceto
+    ).length,
+    [series]
+  );
 
   const registrarSerie = ({ exercicio, reps, carga, obs, descansoEx }) => {
-    const nSerie = series.filter(
-      (s) => s.exercicio === exercicio && s.data.slice(0, 10) === hoje()
-    ).length + 1;
+    const nSerie = seriesFeitas(exercicio) + 1;
     setSeries((a) => [...a, {
       id: uid(), data: new Date().toISOString(), treino: sessao.treino,
       exercicio, serie: nSerie, reps, carga, obs: obs || "",
       status: "⏳ Em andamento", sincronizado: false,
     }]);
-    setRestante(descansoEx || descanso);
-    setRodando(true);
+    iniciarDescanso(descansoEx || descanso);
+
+    /* avanço automático: se fechou o número de séries do exercício, pula
+       pro próximo exercício que ainda não terminou. Se acabaram todos,
+       conclui a sessão. */
+    const treino = treinos.find((t) => t.id === sessao.treino);
+    const ex = treino?.exercicios.find((e) => e.nome === exercicio);
+    if (treino && ex && nSerie >= ex.series) {
+      const pendentes = treino.exercicios.filter((e) => {
+        const feitas = seriesFeitas(e.nome) + (e.nome === exercicio ? 1 : 0);
+        return feitas < e.series;
+      });
+      if (pendentes.length) {
+        setSessao((s) => ({ ...s, exercicio: pendentes[0].nome }));
+        mostrarAviso(`${exercicio} concluído. Próximo: ${pendentes[0].nome}.`, 3500);
+      } else {
+        concluirSessao({ auto: true });
+      }
+    }
+  };
+
+  const removerSerie = (id) => setSeries((a) => a.filter((s) => s.id !== id));
+
+  const concluirSessao = ({ auto = false, parcial = false } = {}) => {
+    if (!sessao) return;
+    const idTreino = sessao.treino;
+    const dia = hoje();
+    setSeries((a) => a.map((s) => (s.status === "⏳ Em andamento" ? { ...s, status: "✅ Completo" } : s)));
+    setConclusoes((cs) =>
+      cs.some((x) => x.data === dia && x.treino === idTreino)
+        ? cs
+        : [...cs, { id: uid(), data: dia, treino: idTreino, parcial }]
+    );
+    setSessao(null);
+    fecharDescanso();
+    setTreinoFinalizado({ treino: idTreino, auto, parcial });
   };
 
   const encerrarSessao = () => {
-    const idTreino = sessao.treino;
-    setSeries((a) => a.map((s) => (s.status === "⏳ Em andamento" ? { ...s, status: "✅ Completo" } : s)));
-    setSessao(null);
-    setRodando(false);
-    setRestante(0);
-    setTreinoFinalizado(idTreino);
+    if (!sessao) return;
+    const treino = treinos.find((t) => t.id === sessao.treino);
+    const completo = !!treino?.exercicios.every((e) => seriesFeitas(e.nome) >= e.series);
+    concluirSessao({ parcial: !completo });
   };
 
   const ultimaVez = (idTreino) => {
-    const ds = series.filter((s) => s.treino === idTreino).map((s) => s.data);
+    const ds = [
+      ...series.filter((s) => s.treino === idTreino).map((s) => diaLocal(s.data)),
+      ...conclusoes.filter((x) => x.treino === idTreino).map((x) => x.data),
+    ];
     return ds.length ? ds.sort().at(-1) : null;
   };
-  /* Progresso semanal: sempre recalculado a partir da data de hoje —
-     dias distintos (não séries) com pelo menos um registro dentro da
-     semana corrente (segunda a domingo). Nunca é um contador guardado,
-     por isso não fica "travado" numa semana antiga. */
+
+  /* Progresso semanal: dias distintos com registro na semana corrente +
+     quais treinos (A–E) já foram concluídos. Sempre recalculado a partir
+     de hoje, nunca um contador guardado. */
   const progressoSemanal = useMemo(() => {
     const inicio = inicioSemanaISO();
-    const dias = new Set(
-      series.filter((s) => s.data.slice(0, 10) >= inicio).map((s) => s.data.slice(0, 10))
-    );
-    return { feitos: dias.size, meta: 7 };
-  }, [series]);
+    const dias = new Set([
+      ...series.filter((s) => diaLocal(s.data) >= inicio).map((s) => diaLocal(s.data)),
+      ...conclusoes.filter((x) => x.data >= inicio).map((x) => x.data),
+    ]);
+    const treinosFeitos = new Set(conclusoes.filter((x) => x.data >= inicio).map((x) => x.treino));
+    return { feitos: dias.size, meta: treinos.length, treinosFeitos };
+  }, [series, conclusoes, treinos]);
 
   if (carregando) {
     return (
@@ -416,7 +621,8 @@ export default function AppTreino() {
         {aba === "sessao" && (
           sessao
             ? <TelaSessao c={c} sessao={sessao} setSessao={setSessao} treinos={treinos}
-                series={series} registrar={registrarSerie} encerrar={encerrarSessao} />
+                series={series} registrar={registrarSerie} encerrar={encerrarSessao}
+                removerSerie={removerSerie} />
             : <Vazio c={c} texto="Nenhum treino em andamento." acao="Escolher treino" onAcao={() => setAba("treinos")} />
         )}
 
@@ -425,19 +631,20 @@ export default function AppTreino() {
         {aba === "cardio" && <TelaCardio c={c} />}
       </div>
 
-      {(rodando || restante > 0) && (
-        <BarraTimer c={c} restante={restante} total={descanso} rodando={rodando}
-          alternar={() => setRodando((r) => !r)}
-          mais={() => setRestante((s) => s + 15)}
-          fechar={() => { setRodando(false); setRestante(0); }} />
+      {fimEm > 0 && (
+        <BarraTimer c={c} restante={restante} total={totalDescanso}
+          rodando={!pausadoEm && restante > 0} pausado={!!pausadoEm} acabou={restante <= 0}
+          alternar={alternarDescanso}
+          mais={() => maisDescanso(15)}
+          fechar={fecharDescanso} />
       )}
 
       {treinoFinalizado && (
-        <ModalFinalizado c={c} treino={treinoFinalizado}
+        <ModalFinalizado c={c} info={treinoFinalizado}
           fechar={() => { setTreinoFinalizado(null); setAba("historico"); }} />
       )}
 
-      <Abas c={c} aba={aba} setAba={setAba} />
+      <Abas c={c} aba={aba} setAba={setAba} sessao={sessao} />
     </div>
   );
 }
@@ -454,7 +661,7 @@ function Topo({ c, tema, setTema, sessao }) {
         </div>
         <h1 className="text-3xl font-bold tracking-tight leading-none mt-1">Barra</h1>
       </div>
-      <button onClick={() => setTema(tema === "dark" ? "light" : "dark")}
+      <button type="button" onClick={() => setTema(tema === "dark" ? "light" : "dark")}
         className="p-2 rounded-full" style={{ background: c.surface2, color: c.ink }}
         aria-label="Alternar tema">
         {tema === "dark" ? <Sun size={18} /> : <Moon size={18} />}
@@ -472,10 +679,16 @@ function Selo({ c, status }) {
       style={{ color: cor, border: `1px solid ${cor}`, fontFamily: MONO }}>{s.label}</span>
   );
 }
+
 /* ------------------------------------------------------------ tela 1 */
 
 function TelaTreinos({ c, treinos, ultimaVez, iniciar, sessao, continuar, progresso }) {
   const pct = Math.min(100, (progresso.feitos / progresso.meta) * 100);
+  const hojeDow = new Date().getDay();
+  const treinoDeHoje = treinos.find((t) => DOW[t.dia] === hojeDow);
+  const feitoHoje = treinoDeHoje && progresso.treinosFeitos.has(treinoDeHoje.id);
+  const handebolHoje = hojeDow === 2 || hojeDow === 4;
+
   return (
     <div className="px-4 space-y-3">
       <div className="p-4 rounded-2xl" style={{ background: c.surface, border: `1px solid ${c.line}` }}>
@@ -490,10 +703,38 @@ function TelaTreinos({ c, treinos, ultimaVez, iniciar, sessao, continuar, progre
         <div className="h-2 rounded-full overflow-hidden" style={{ background: c.surface2 }}>
           <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: c.accent }} />
         </div>
+        <div className="flex gap-1.5 mt-3">
+          {treinos.map((t) => {
+            const f = progresso.treinosFeitos.has(t.id);
+            return (
+              <div key={t.id} className="flex-1 flex flex-col items-center gap-1">
+                <div className="w-full h-1.5 rounded-full" style={{ background: f ? c.ok : c.surface2 }} />
+                <span className="text-[9px]" style={{ color: f ? c.ok : c.muted, fontFamily: MONO }}>{t.id}</span>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
+      {treinoDeHoje && (
+        <div className="px-4 py-3 rounded-2xl flex items-center gap-3"
+          style={{ background: c.surface, border: `1px solid ${feitoHoje ? c.ok : c.accent}` }}>
+          <CalendarDays size={18} style={{ color: feitoHoje ? c.ok : c.accent, flexShrink: 0 }} />
+          <div className="flex-1 text-sm min-w-0">
+            <b>Hoje: treino {treinoDeHoje.id}</b>
+            <span style={{ color: c.muted }}> — {treinoDeHoje.nome}</span>
+            {handebolHoje && <span style={{ color: c.warn }}> · handebol 20h30</span>}
+          </div>
+          {feitoHoje
+            ? <Check size={18} style={{ color: c.ok, flexShrink: 0 }} />
+            : <button type="button" onClick={() => iniciar(treinoDeHoje)}
+                className="px-3 py-1.5 rounded-lg text-sm font-semibold shrink-0"
+                style={{ background: c.accent, color: c.accentInk }}>Iniciar</button>}
+        </div>
+      )}
+
       {sessao && (
-        <button onClick={continuar}
+        <button type="button" onClick={continuar}
           className="w-full flex items-center justify-between px-4 py-3 rounded-2xl"
           style={{ background: c.accent, color: c.accentInk }}>
           <span className="font-semibold">Voltar ao treino {sessao.treino}</span>
@@ -503,10 +744,11 @@ function TelaTreinos({ c, treinos, ultimaVez, iniciar, sessao, continuar, progre
 
       {treinos.map((t) => {
         const u = ultimaVez(t.id);
+        const feito = progresso.treinosFeitos.has(t.id);
         return (
-          <button key={t.id} onClick={() => iniciar(t)}
+          <button type="button" key={t.id} onClick={() => iniciar(t)}
             className="w-full flex items-center gap-4 p-4 rounded-2xl text-left"
-            style={{ background: c.surface, border: `1px solid ${c.line}` }}>
+            style={{ background: c.surface, border: `1px solid ${feito ? c.ok : c.line}` }}>
             <div className="w-14 h-14 rounded-xl flex flex-col items-center justify-center shrink-0"
               style={{ background: c.surface2 }}>
               <span className="text-xl font-bold" style={{ fontFamily: MONO }}>{t.id}</span>
@@ -518,7 +760,9 @@ function TelaTreinos({ c, treinos, ultimaVez, iniciar, sessao, continuar, progre
                 {t.exercicios.length} exercícios · {u ? diasAtras(u) : "sem registro"}
               </div>
             </div>
-            <Play size={20} style={{ color: c.accent }} />
+            {feito
+              ? <Check size={20} style={{ color: c.ok }} />
+              : <Play size={20} style={{ color: c.accent }} />}
           </button>
         );
       })}
@@ -528,7 +772,7 @@ function TelaTreinos({ c, treinos, ultimaVez, iniciar, sessao, continuar, progre
 
 /* ------------------------------------------------------------ tela 2 */
 
-function TelaSessao({ c, sessao, setSessao, treinos, series, registrar, encerrar }) {
+function TelaSessao({ c, sessao, setSessao, treinos, series, registrar, encerrar, removerSerie }) {
   const treino = treinos.find((t) => t.id === sessao.treino);
   const ex = treino.exercicios.find((e) => e.nome === sessao.exercicio) || treino.exercicios[0];
   const [reps, setReps] = useState("");
@@ -537,13 +781,21 @@ function TelaSessao({ c, sessao, setSessao, treinos, series, registrar, encerrar
   const [erro, setErro] = useState("");
   const [videoAberto, setVideoAberto] = useState(false);
 
-  const feitasHoje = series.filter((s) => s.exercicio === ex.nome && s.data.slice(0, 10) === hoje());
+  const feitasNoDia = (nome) => series.filter((s) => s.exercicio === nome && diaLocal(s.data) === hoje()).length;
+  const feitasHoje = series.filter((s) => s.exercicio === ex.nome && diaLocal(s.data) === hoje());
+
+  const idx = treino.exercicios.findIndex((e) => e.nome === ex.nome);
+  const totalSeriesPlano = treino.exercicios.reduce((n, e) => n + e.series, 0);
+  const seriesFeitasHoje = treino.exercicios.reduce((n, e) => n + feitasNoDia(e.nome), 0);
+  const completoEx = feitasHoje.length >= ex.series;
+  const proximo = treino.exercicios.find((e) => e.nome !== ex.nome && feitasNoDia(e.nome) < e.series);
+  const tudoFeito = !treino.exercicios.some((e) => feitasNoDia(e.nome) < e.series);
 
   const anterior = useMemo(() => {
-    const antigas = series.filter((s) => s.exercicio === ex.nome && s.data.slice(0, 10) !== hoje());
+    const antigas = series.filter((s) => s.exercicio === ex.nome && diaLocal(s.data) !== hoje());
     if (!antigas.length) return null;
-    const d = antigas.map((s) => s.data.slice(0, 10)).sort().at(-1);
-    const doDia = antigas.filter((s) => s.data.slice(0, 10) === d);
+    const d = antigas.map((s) => diaLocal(s.data)).sort().at(-1);
+    const doDia = antigas.filter((s) => diaLocal(s.data) === d);
     return { data: d, carga: Math.max(...doDia.map((s) => s.carga)), reps: doDia.map((s) => s.reps).join("/") };
   }, [series, ex.nome]);
 
@@ -563,21 +815,32 @@ function TelaSessao({ c, sessao, setSessao, treinos, series, registrar, encerrar
     registrar({ exercicio: ex.nome, reps: r, carga: k, obs, descansoEx: ex.descanso });
     setObs("");
   };
+
+  const avancar = () => {
+    if (proximo) setSessao({ ...sessao, exercicio: proximo.nome });
+    else encerrar();
+  };
+
   return (
     <div className="px-4 space-y-4">
+      <div className="flex items-center justify-between text-xs" style={{ color: c.muted, fontFamily: MONO }}>
+        <span>exercício {idx + 1}/{treino.exercicios.length}</span>
+        <span>{seriesFeitasHoje}/{totalSeriesPlano} séries no treino</span>
+      </div>
+
       <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
         {treino.exercicios.map((e) => {
           const ativo = e.nome === ex.nome;
-          const n = series.filter((s) => s.exercicio === e.nome && s.data.slice(0, 10) === hoje()).length;
+          const n = feitasNoDia(e.nome);
           const completo = n >= e.series;
           return (
-            <button key={e.nome} onClick={() => setSessao({ ...sessao, exercicio: e.nome })}
+            <button type="button" key={e.nome} onClick={() => setSessao({ ...sessao, exercicio: e.nome })}
               className="shrink-0 px-3 py-2 rounded-full text-sm whitespace-nowrap"
               style={{
                 background: ativo ? c.accent : c.surface, color: ativo ? c.accentInk : (completo ? c.ok : c.ink),
                 border: `1px solid ${ativo ? c.accent : (completo ? c.ok : c.line)}`,
               }}>
-              {e.nome.split(" ").slice(0, 2).join(" ")}
+              {completo && !ativo ? "✓ " : ""}{nomeCurto(e.nome)}
               <span style={{ fontFamily: MONO }}> {n}/{e.series}</span>
             </button>
           );
@@ -596,9 +859,17 @@ function TelaSessao({ c, sessao, setSessao, treinos, series, registrar, encerrar
           <span><b style={{ color: c.ink }}>{mmss(ex.descanso)}</b> descanso</span>
         </div>
 
+        {anterior && (
+          <div className="flex items-center justify-between mt-3 px-3 py-2 rounded-xl text-sm"
+            style={{ background: c.surface2, fontFamily: MONO }}>
+            <span style={{ color: c.muted }}>última ({dataBR(anterior.data).slice(0, 5)})</span>
+            <span className="font-semibold">{anterior.carga} kg × {anterior.reps}</span>
+          </div>
+        )}
+
         {ex.obs && <p className="text-sm mt-3" style={{ color: c.muted }}>{ex.obs}</p>}
 
-        <button onClick={() => setVideoAberto(true)}
+        <button type="button" onClick={() => setVideoAberto(true)}
           className="w-full mt-3 py-2.5 rounded-xl font-medium flex items-center justify-center gap-2 text-sm"
           style={{ background: c.surface2, color: c.ink }}>
           <Video size={16} /> Ver vídeo do exercício
@@ -616,11 +887,31 @@ function TelaSessao({ c, sessao, setSessao, treinos, series, registrar, encerrar
 
         {erro && <div className="mt-2 text-sm" style={{ color: c.pr }}>{erro}</div>}
 
-        <button onClick={enviar}
-          className="w-full mt-3 py-4 rounded-2xl font-semibold text-lg flex items-center justify-center gap-2"
-          style={{ background: c.accent, color: c.accentInk }}>
-          <Check size={22} /> Registrar série {feitasHoje.length + 1} de {ex.series}
-        </button>
+        {!completoEx ? (
+          <button type="button" onClick={enviar}
+            className="w-full mt-3 py-4 rounded-2xl font-semibold text-lg flex items-center justify-center gap-2"
+            style={{ background: c.accent, color: c.accentInk }}>
+            <Check size={22} /> Registrar série {feitasHoje.length + 1} de {ex.series}
+          </button>
+        ) : (
+          <>
+            <div className="mt-3 text-sm text-center" style={{ color: c.ok, fontFamily: MONO }}>
+              ✓ {ex.series} séries de {nomeCurto(ex.nome)} feitas
+            </div>
+            <button type="button" onClick={avancar}
+              className="w-full mt-2 py-4 rounded-2xl font-semibold text-lg flex items-center justify-center gap-2"
+              style={{ background: c.ok, color: "#fff" }}>
+              {proximo
+                ? <>Próximo: {nomeCurto(proximo.nome)} <ArrowRight size={20} /></>
+                : <>Finalizar treino {treino.id} <Flag size={18} /></>}
+            </button>
+            <button type="button" onClick={enviar}
+              className="w-full mt-2 py-2.5 rounded-xl text-sm font-medium"
+              style={{ background: c.surface2, color: c.muted }}>
+              + registrar série extra
+            </button>
+          </>
+        )}
       </div>
 
       {feitasHoje.length > 0 && (
@@ -633,22 +924,28 @@ function TelaSessao({ c, sessao, setSessao, treinos, series, registrar, encerrar
               <div key={s.id} className="flex items-center justify-between px-4 py-3 rounded-xl"
                 style={{ background: c.surface, border: `1px solid ${c.line}` }}>
                 <span className="text-sm" style={{ color: c.muted, fontFamily: MONO }}>série {s.serie}</span>
-                <span className="font-semibold" style={{ fontFamily: MONO }}>{s.carga} kg × {s.reps}</span>
+                <div className="flex items-center gap-3">
+                  <span className="font-semibold" style={{ fontFamily: MONO }}>{s.carga} kg × {s.reps}</span>
+                  <button type="button" onClick={() => removerSerie(s.id)} aria-label="Remover série">
+                    <Trash2 size={15} style={{ color: c.muted }} />
+                  </button>
+                </div>
               </div>
             ))}
           </div>
         </div>
       )}
 
-      <button onClick={encerrar} className="w-full py-3 rounded-2xl font-medium"
-        style={{ background: c.surface2, color: c.ink }}>
-        Encerrar treino {treino.id}
+      <button type="button" onClick={encerrar} className="w-full py-3 rounded-2xl font-medium"
+        style={{ background: tudoFeito ? c.ok : c.surface2, color: tudoFeito ? "#fff" : c.ink }}>
+        {tudoFeito ? `Finalizar treino ${treino.id}` : `Encerrar treino ${treino.id}`}
       </button>
 
       {videoAberto && <ModalVideo c={c} exercicio={ex.nome} fechar={() => setVideoAberto(false)} />}
     </div>
   );
 }
+
 function ModalVideo({ c, exercicio, fechar }) {
   const busca = `${exercicio} execução técnica academia`;
   const urlBusca = `https://www.youtube.com/results?search_query=${encodeURIComponent(busca)}`;
@@ -660,7 +957,7 @@ function ModalVideo({ c, exercicio, fechar }) {
         onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: `1px solid ${c.line}` }}>
           <span className="font-semibold text-sm truncate pr-2">{exercicio}</span>
-          <button onClick={fechar} aria-label="Fechar"><X size={20} style={{ color: c.muted }} /></button>
+          <button type="button" onClick={fechar} aria-label="Fechar"><X size={20} style={{ color: c.muted }} /></button>
         </div>
         <div style={{ aspectRatio: "16/9", background: "#000" }}>
           <iframe
@@ -682,7 +979,8 @@ function ModalVideo({ c, exercicio, fechar }) {
   );
 }
 
-function ModalFinalizado({ c, treino, fechar }) {
+function ModalFinalizado({ c, info, fechar }) {
+  const { treino, auto, parcial } = info || {};
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center px-6" style={{ background: "rgba(0,0,0,0.65)" }}
       onClick={fechar}>
@@ -690,10 +988,22 @@ function ModalFinalizado({ c, treino, fechar }) {
         onClick={(e) => e.stopPropagation()}>
         <div className="text-4xl mb-2">🏁</div>
         <h2 className="text-xl font-bold leading-tight" style={{ fontFamily: MONO }}>
-          TREINO {treino} FINALIZADO!
+          TREINO {treino} {parcial ? "ENCERRADO" : "FINALIZADO"}!
         </h2>
-        <p className="mt-1 font-semibold" style={{ color: c.accent }}>PARABÉNS</p>
-        <button onClick={fechar}
+        <p className="mt-1 font-semibold" style={{ color: c.accent }}>
+          {parcial ? "CONTOU COMO TREINO DO DIA" : "PARABÉNS"}
+        </p>
+        {auto && (
+          <p className="mt-2 text-sm" style={{ color: c.muted }}>
+            Finalizado automaticamente — a sessão tinha ficado aberta de outro dia.
+          </p>
+        )}
+        {parcial && !auto && (
+          <p className="mt-2 text-sm" style={{ color: c.muted }}>
+            Você encerrou antes de fechar todas as séries. Mesmo assim foi registrado.
+          </p>
+        )}
+        <button type="button" onClick={fechar}
           className="w-full mt-5 py-3 rounded-2xl font-semibold"
           style={{ background: c.accent, color: c.accentInk }}>
           Ver histórico
@@ -709,16 +1019,18 @@ function Stepper({ c, rotulo, valor, setValor, passo, min }) {
     <div>
       <div className="text-xs uppercase tracking-widest mb-1" style={{ color: c.muted, fontFamily: MONO }}>{rotulo}</div>
       <div className="flex items-center rounded-xl overflow-hidden" style={{ background: c.surface2 }}>
-        <button onClick={() => muda(-passo)} className="px-3 py-3" aria-label={`Diminuir ${rotulo}`}><Minus size={18} /></button>
+        <button type="button" onClick={() => muda(-passo)} className="px-3 py-3" aria-label={`Diminuir ${rotulo}`}><Minus size={18} /></button>
         <input value={valor} inputMode="decimal"
+          onFocus={(e) => e.target.select()}
           onChange={(e) => setValor(e.target.value.replace(",", "."))}
           className="w-full text-center text-2xl font-bold bg-transparent outline-none py-2"
           style={{ fontFamily: MONO, color: c.ink }} />
-        <button onClick={() => muda(passo)} className="px-3 py-3" aria-label={`Aumentar ${rotulo}`}><Plus size={18} /></button>
+        <button type="button" onClick={() => muda(passo)} className="px-3 py-3" aria-label={`Aumentar ${rotulo}`}><Plus size={18} /></button>
       </div>
     </div>
   );
 }
+
 /* ------------------------------------------------------------ tela 3 */
 
 function TelaHistorico({ c, series }) {
@@ -729,7 +1041,7 @@ function TelaHistorico({ c, series }) {
   const porDia = useMemo(() => {
     const m = new Map();
     series.filter((s) => s.exercicio === sel).forEach((s) => {
-      const d = s.data.slice(0, 10);
+      const d = diaLocal(s.data);
       const at = m.get(d) || { data: d, carga: 0, reps: 0, series: 0, volume: 0 };
       at.carga = Math.max(at.carga, s.carga);
       at.reps += s.reps;
@@ -750,7 +1062,7 @@ function TelaHistorico({ c, series }) {
     <div className="px-4 space-y-4">
       <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
         {exercicios.map((e) => (
-          <button key={e} onClick={() => setSel(e)}
+          <button type="button" key={e} onClick={() => setSel(e)}
             className="shrink-0 px-3 py-2 rounded-full text-sm whitespace-nowrap"
             style={{
               background: e === sel ? c.accent : c.surface, color: e === sel ? c.accentInk : c.ink,
@@ -807,6 +1119,7 @@ function TelaHistorico({ c, series }) {
     </div>
   );
 }
+
 /* ------------------------------------------------------------- marcos */
 
 function TelaMarcos({ c, marcos, setMarcos }) {
@@ -824,9 +1137,9 @@ function TelaMarcos({ c, marcos, setMarcos }) {
     <div className="px-4 space-y-4">
       <div className="p-4 rounded-2xl" style={{ background: c.surface, border: `1px solid ${c.line}` }}>
         <div className="flex items-center justify-between mb-3">
-          <button onClick={() => setMes(new Date(mes.getFullYear(), mes.getMonth() - 1, 1))} className="p-2"><ChevronLeft size={18} /></button>
+          <button type="button" onClick={() => setMes(new Date(mes.getFullYear(), mes.getMonth() - 1, 1))} className="p-2"><ChevronLeft size={18} /></button>
           <span className="font-semibold capitalize">{nomeMes}</span>
-          <button onClick={() => setMes(new Date(mes.getFullYear(), mes.getMonth() + 1, 1))} className="p-2"><ChevronRight size={18} /></button>
+          <button type="button" onClick={() => setMes(new Date(mes.getFullYear(), mes.getMonth() + 1, 1))} className="p-2"><ChevronRight size={18} /></button>
         </div>
 
         <div className="grid grid-cols-7 gap-1 text-center text-xs mb-1" style={{ color: c.muted, fontFamily: MONO }}>
@@ -839,7 +1152,7 @@ function TelaMarcos({ c, marcos, setMarcos }) {
             const marco = marcos.find((m) => m.data === iso(dia));
             const cor = marco ? TIPOS_MARCO.find((t) => t.id === marco.tipo).cor : null;
             return (
-              <button key={dia} onClick={() => setForm({ data: iso(dia), tipo: marco?.tipo || "pr", nota: marco?.nota || "" })}
+              <button type="button" key={dia} onClick={() => setForm({ data: iso(dia), tipo: marco?.tipo || "pr", nota: marco?.nota || "" })}
                 className="aspect-square rounded-lg flex flex-col items-center justify-center text-sm"
                 style={{ background: marco ? c.surface2 : "transparent", fontFamily: MONO }}>
                 <span style={{ color: marco ? c.ink : c.muted }}>{dia}</span>
@@ -869,19 +1182,20 @@ function TelaMarcos({ c, marcos, setMarcos }) {
                 {m.nota && <div className="text-sm" style={{ color: c.muted }}>{m.nota}</div>}
               </div>
               <span className="text-sm shrink-0" style={{ color: c.muted, fontFamily: MONO }}>{dataBR(m.data).slice(0, 5)}</span>
-              <button onClick={() => setMarcos((ms) => ms.filter((x) => x.data !== m.data))} aria-label="Remover marco">
+              <button type="button" onClick={() => setMarcos((ms) => ms.filter((x) => x.data !== m.data))} aria-label="Remover marco">
                 <X size={16} style={{ color: c.muted }} />
               </button>
             </div>
           ))}
         </div>
       )}
+
       {form && (
         <div className="p-4 rounded-2xl space-y-3" style={{ background: c.surface, border: `1px solid ${c.accent}` }}>
           <div className="font-semibold">Marcar {dataBR(form.data)}</div>
           <div className="flex gap-2 flex-wrap">
             {TIPOS_MARCO.map((t) => (
-              <button key={t.id} onClick={() => setForm({ ...form, tipo: t.id })}
+              <button type="button" key={t.id} onClick={() => setForm({ ...form, tipo: t.id })}
                 className="flex-1 py-2 rounded-xl text-sm min-w-[45%]"
                 style={{ background: form.tipo === t.id ? t.cor : c.surface2, color: form.tipo === t.id ? "#fff" : c.ink }}>
                 {t.label}
@@ -893,8 +1207,8 @@ function TelaMarcos({ c, marcos, setMarcos }) {
             className="w-full px-3 py-2 rounded-xl text-sm outline-none"
             style={{ background: c.surface2, color: c.ink, border: `1px solid ${c.line}` }} />
           <div className="flex gap-2">
-            <button onClick={() => setForm(null)} className="flex-1 py-3 rounded-xl" style={{ background: c.surface2 }}>Cancelar</button>
-            <button
+            <button type="button" onClick={() => setForm(null)} className="flex-1 py-3 rounded-xl" style={{ background: c.surface2 }}>Cancelar</button>
+            <button type="button"
               onClick={() => {
                 setMarcos((ms) => [...ms.filter((m) => m.data !== form.data), { data: form.data, tipo: form.tipo, nota: form.nota }]);
                 setForm(null);
@@ -939,6 +1253,7 @@ function TelaCardio({ c }) {
         </div>
         <p className="text-xs mt-3" style={{ color: c.muted }}>{AQUECIMENTO.obs}</p>
       </div>
+
       <div className="p-4 rounded-2xl" style={{ background: c.surface, border: `1px solid ${c.line}` }}>
         <div className="flex items-center gap-2 mb-1">
           <Flame size={16} style={{ color: c.ok }} />
@@ -984,25 +1299,26 @@ function TelaCardio({ c }) {
 
 /* ------------------------------------------------------------- timer */
 
-function BarraTimer({ c, restante, total, rodando, alternar, mais, fechar }) {
+function BarraTimer({ c, restante, total, rodando, pausado, acabou, alternar, mais, fechar }) {
   const pct = total ? Math.min(100, (restante / total) * 100) : 0;
-  const acabou = restante === 0;
   return (
     <div className="fixed left-0 right-0 z-20" style={{ bottom: "max(4rem, calc(4rem + env(safe-area-inset-bottom)))" }}>
       <div className="max-w-md mx-auto px-4">
         <div className="rounded-2xl overflow-hidden" style={{ background: c.surface, border: `1px solid ${acabou ? c.pr : c.line}` }}>
           <div className="h-1" style={{ background: c.surface2 }}>
-            <div className="h-full transition-all duration-1000" style={{ width: `${pct}%`, background: acabou ? c.pr : c.accent }} />
+            <div className="h-full transition-all duration-500" style={{ width: `${pct}%`, background: acabou ? c.pr : c.accent }} />
           </div>
           <div className="flex items-center gap-3 px-4 py-3">
             <Timer size={20} style={{ color: acabou ? c.pr : c.accent }} />
-            <div className="text-3xl font-bold tabular-nums" style={{ fontFamily: MONO }}>{mmss(restante)}</div>
-            <div className="flex-1 text-sm" style={{ color: c.muted }}>{acabou ? "Descanso acabou" : "descanso"}</div>
-            <button onClick={mais} className="px-3 py-2 rounded-xl text-sm font-semibold"
+            <div className="text-3xl font-bold tabular-nums" style={{ fontFamily: MONO }} aria-live="polite">{mmss(restante)}</div>
+            <div className="flex-1 text-sm" style={{ color: c.muted }}>
+              {acabou ? "Descanso acabou" : pausado ? "pausado" : "descanso"}
+            </div>
+            <button type="button" onClick={mais} className="px-3 py-2 rounded-xl text-sm font-semibold"
               style={{ background: c.surface2, fontFamily: MONO }}>+15s</button>
-            <button onClick={acabou ? fechar : alternar} className="px-3 py-2 rounded-xl text-sm font-semibold"
+            <button type="button" onClick={acabou ? fechar : alternar} className="px-3 py-2 rounded-xl text-sm font-semibold"
               style={{ background: c.surface2 }}>
-              {acabou ? "Fechar" : rodando ? "Pausar" : "Seguir"}
+              {acabou ? "Fechar" : pausado ? "Seguir" : "Pausar"}
             </button>
           </div>
         </div>
@@ -1010,9 +1326,10 @@ function BarraTimer({ c, restante, total, rodando, alternar, mais, fechar }) {
     </div>
   );
 }
+
 /* --------------------------------------------------------------- abas */
 
-function Abas({ c, aba, setAba }) {
+function Abas({ c, aba, setAba, sessao }) {
   const itens = [
     { id: "treinos", icone: Dumbbell, label: "Treinos" },
     { id: "sessao", icone: Play, label: "Sessão" },
@@ -1026,11 +1343,13 @@ function Abas({ c, aba, setAba }) {
         {itens.map((i) => {
           const Icone = i.icone;
           const ativo = aba === i.id;
+          const destaque = i.id === "sessao" && sessao && !ativo;
           return (
-            <button key={i.id} onClick={() => setAba(i.id)} className="flex flex-col items-center gap-0.5 py-2"
-              style={{ color: ativo ? c.accent : c.muted }}>
+            <button type="button" key={i.id} onClick={() => setAba(i.id)} className="relative flex flex-col items-center gap-0.5 py-2"
+              style={{ color: ativo ? c.accent : (destaque ? c.ok : c.muted) }}>
               <Icone size={20} />
               <span className="text-[10px]">{i.label}</span>
+              {destaque && <span className="absolute top-1 right-1/4 w-1.5 h-1.5 rounded-full" style={{ background: c.ok }} />}
             </button>
           );
         })}
@@ -1044,7 +1363,7 @@ function Vazio({ c, texto, acao, onAcao }) {
     <div className="px-8 py-16 text-center">
       <p style={{ color: c.muted }}>{texto}</p>
       {acao && (
-        <button onClick={onAcao} className="mt-4 px-5 py-3 rounded-xl font-semibold"
+        <button type="button" onClick={onAcao} className="mt-4 px-5 py-3 rounded-xl font-semibold"
           style={{ background: c.accent, color: c.accentInk }}>{acao}</button>
       )}
     </div>
