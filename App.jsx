@@ -42,8 +42,10 @@ const STORE_KEY = "treino:v2";
    partir de TREINOS_PADRAO na próxima abertura; histórico, marcos e
    conclusões são preservados intactos.
    v2 (14/09/2026): supino reto na máquina, elevação lateral 2x/semana,
-   mesa flexora na sexta, encolhimento removido. */
-const PROGRAMA_VERSAO = 2;
+   mesa flexora na sexta, encolhimento removido.
+   v3 (14/09/2026): antebraço 2x/semana (rosca inversa + rosca de punho no
+   fim de C e de E), com foco em braquiorradial para ganho de massa. */
+const PROGRAMA_VERSAO = 3;
 
 /* --------------------------------------------------- persistência robusta
    O app já perdeu dados por depender só de window.storage, que em alguns
@@ -122,6 +124,8 @@ const TREINOS_PADRAO = [
       { nome: "Crossover na Polia", series: 3, reps: "12-15", descanso: 60, alvo: 10, status: "subir", obs: "2 anilhas de 5 kg. Fecha as 15 reps com folga." },
       { nome: "Rosca Martelo", series: 3, reps: "12", descanso: 60, alvo: 6, status: "subir", obs: "Por halter. Pegada neutra o movimento inteiro." },
       { nome: "Tríceps Testa na Polia", series: 3, reps: "10-12", descanso: 60, alvo: 25, status: "subir", obs: "5 anilhas de 5 kg. Cotovelo parado." },
+      { nome: "Rosca Inversa (Barra W)", series: 3, reps: "12-15", descanso: 60, alvo: 0, status: "novo", obs: "Por lado. Pegada pronada, cotovelo parado. É o principal exercício de massa do antebraço (braquiorradial) — a carga vai ser bem menor que na rosca direta, é normal." },
+      { nome: "Rosca de Punho (Barra W)", series: 3, reps: "15-20", descanso: 45, alvo: 0, status: "novo", obs: "Por lado. Antebraço apoiado no banco, deixa o punho estender bem embaixo antes de enrolar." },
     ],
   },
   {
@@ -145,6 +149,8 @@ const TREINOS_PADRAO = [
       { nome: "Rotação Externa com Halteres", series: 3, reps: "12-15", descanso: 60, alvo: 2, status: "novo", obs: "Saúde do ombro — relevante pro arremesso do handebol." },
       { nome: "Pallof Press na Polia", series: 3, reps: "10-12", descanso: 45, alvo: 15, status: "novo", obs: "Por lado. Anti-rotação, transfere direto pro handebol." },
       { nome: "Abdominal Infra (elevação de pernas)", series: 3, reps: "12-15", descanso: 45, alvo: 0, status: "novo", obs: "Controle na descida, sem balançar o tronco." },
+      { nome: "Rosca Inversa (Barra W)", series: 3, reps: "12-15", descanso: 60, alvo: 0, status: "novo", obs: "Por lado. Segunda dose da semana. Mesma carga da quarta — se fechou 3×15 lá, sobe aqui." },
+      { nome: "Rosca de Punho (Barra W)", series: 3, reps: "15-20", descanso: 45, alvo: 0, status: "novo", obs: "Por lado. Segunda dose da semana. Amplitude completa vale mais que carga." },
     ],
   },
 ];
