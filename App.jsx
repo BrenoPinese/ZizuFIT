@@ -36,6 +36,15 @@ const MONO = '"IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace';
 const SANS = '"IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif';
 const STORE_KEY = "treino:v2";
 
+/* Versão do PROGRAMA (não dos dados). O app guarda os treinos no storage,
+   então editar TREINOS_PADRAO sozinho não chegava no aparelho — a versão
+   salva continuava valendo. Ao subir este número, o programa é resemeado a
+   partir de TREINOS_PADRAO na próxima abertura; histórico, marcos e
+   conclusões são preservados intactos.
+   v2 (14/09/2026): supino reto na máquina, elevação lateral 2x/semana,
+   mesa flexora na sexta, encolhimento removido. */
+const PROGRAMA_VERSAO = 2;
+
 /* --------------------------------------------------- persistência robusta
    O app já perdeu dados por depender só de window.storage, que em alguns
    ambientes não persiste entre recarregamentos. Agora grava em
@@ -82,7 +91,7 @@ const TREINOS_PADRAO = [
     id: "A", nome: "Superior A · Peito · Costas · Ombro", dia: "Segunda",
     aviso: "Sem handebol nesta segunda — dia livre pra puxar volume/intensidade.",
     exercicios: [
-      { nome: "Supino Reto com Barra", series: 4, reps: "8-10", descanso: 120, alvo: 22.5, status: "atencao", obs: "Por lado. Falhou reps em duas sessões seguidas — reduzir para 22,5 kg e reconstruir antes de subir de novo." },
+      { nome: "Supino Reto na Máquina (Hack)", series: 4, reps: "8-10", descanso: 120, alvo: 30, barra: 0, status: "manter", obs: "Por lado. Substituiu o supino reto com barra, que travou em 8-8-8-6 @ 25 kg em duas sessões idênticas. Na máquina a progressão volta a andar: feche 4×10 antes de subir." },
       { nome: "Puxada Frontal na Polia", series: 4, reps: "8-10", descanso: 90, alvo: 55, status: "manter", obs: "11 anilhas de 5 kg. Só sobe quando fechar 4×10 limpo, sem embalo." },
       { nome: "Remada Curvada c/ Halteres", series: 3, reps: "8-10", descanso: 90, alvo: 20, status: "subir", obs: "Por halter. Tronco firme, sem roubar com a lombar." },
       { nome: "Desenvolvimento com Halteres", series: 3, reps: "8-10", descanso: 90, alvo: 14, status: "manter", obs: "Por halter. Última série vinha caindo para 8 reps." },
@@ -93,7 +102,7 @@ const TREINOS_PADRAO = [
   },
   {
     id: "B", nome: "Inferior A · Leve/Técnico", dia: "Terça",
-    aviso: "Handebol 20h30 — volume reduzido de propósito, parar bem longe da falha pra sobrar energia pra quadra.",
+    aviso: "Handebol 20h30 — o volume já vem reduzido de propósito, então as séries podem ser levadas a 2-3 RIR nas máquinas. Série morna não rende: o que protege a quadra aqui é o volume menor e a ausência de agachamento livre, não parar cedo demais.",
     exercicios: [
       { nome: "Leg Press 45°", series: 3, reps: "10-12", descanso: 120, alvo: 60, status: "manter", obs: "Por lado. Não travar o joelho no topo." },
       { nome: "Cadeira Extensora", series: 3, reps: "12-15", descanso: 60, alvo: 50, status: "manter", obs: "10 anilhas de 5 kg. Pausa de 1s com a perna estendida." },
@@ -117,7 +126,7 @@ const TREINOS_PADRAO = [
   },
   {
     id: "D", nome: "Inferior B · Pesado", dia: "Quinta",
-    aviso: "Handebol 20h30 — é a perna mais pesada da semana, mas pare por volta de 2 RIR, nunca na falha, pra não comprometer a quadra.",
+    aviso: "Perna mais pesada da semana, com handebol 20h30. Trabalhe a 2 RIR, sem levar à falha. Se a perna chegar pesada na quadra, alongue o aquecimento do handebol em vez de cortar o treino.",
     exercicios: [
       { nome: "Agachamento na Máquina/Smith", series: 3, reps: "8-10", descanso: 120, alvo: 40, status: "manter", obs: "Por lado. Profundidade confortável, joelho na direção do pé." },
       { nome: "Stiff com Barra ou Halteres", series: 3, reps: "8-10", descanso: 120, alvo: 0, status: "novo", obs: "Sem carga registrada ainda. Comece conservador e anote o que usar." },
@@ -128,10 +137,11 @@ const TREINOS_PADRAO = [
   },
   {
     id: "E", nome: "Full Body · Ajuste", dia: "Sexta",
-    aviso: "Sem handebol até segunda — dia mais longe do handebol, pode intensificar. Fecha a frequência 2x/semana dos grupos e leva o cardio pós-treino.",
+    aviso: "Sem handebol até terça — é o dia com mais folga da semana. Fecha a frequência 2x/semana de ombro e posterior de coxa, e leva o cardio pós-treino.",
     exercicios: [
       { nome: "Agachamento Búlgaro", series: 3, reps: "10-12 cada perna", descanso: 90, alvo: 0, status: "novo", obs: "Sem carga registrada ainda. Perna de trás só de apoio, o trabalho é na da frente." },
-      { nome: "Encolhimento de Ombros", series: 4, reps: "12", descanso: 60, alvo: 24, status: "manter", obs: "Por halter. Pausa de 1s no topo, sem girar o ombro." },
+      { nome: "Mesa Flexora", series: 3, reps: "10-12", descanso: 90, alvo: 0, status: "novo", obs: "Segunda dose de posterior na semana, em dia sem handebol. Quadril colado no banco, excêntrica controlada de 2-3s." },
+      { nome: "Elevação Lateral no Cabo", series: 3, reps: "12-15", descanso: 60, alvo: 0, status: "novo", obs: "Sem carga registrada ainda. Braço cruzando a frente do corpo embaixo — é a versão com tensão no ponto alongado. Comece leve, o cabo pesa diferente do halter." },
       { nome: "Rotação Externa com Halteres", series: 3, reps: "12-15", descanso: 60, alvo: 2, status: "novo", obs: "Saúde do ombro — relevante pro arremesso do handebol." },
       { nome: "Pallof Press na Polia", series: 3, reps: "10-12", descanso: 45, alvo: 15, status: "novo", obs: "Por lado. Anti-rotação, transfere direto pro handebol." },
       { nome: "Abdominal Infra (elevação de pernas)", series: 3, reps: "12-15", descanso: 45, alvo: 0, status: "novo", obs: "Controle na descida, sem balançar o tronco." },
@@ -209,7 +219,7 @@ const CARDIO_POS_TREINO = {
   duracao: "15-25 min",
   formato: "LISS (esteira ou bike, intensidade moderada, ~60-70% FC máx) — sempre depois da musculação, nunca antes.",
   quando: "Nos 5 dias de treino (segunda a sexta), logo após a última série do dia.",
-  obs: "O efeito de interferência entre força e cardio é pequeno e concentrado em força/potência quando o cardio vem antes ou é muito intenso — não na perda de gordura. Fazer sempre depois preserva a qualidade do treino de força, prioridade pra reter massa magra no déficit.",
+  obs: "O efeito de interferência entre força e cardio é pequeno e concentrado em força/potência quando o cardio vem antes ou é muito intenso — não na perda de gordura. Fazer sempre depois preserva a qualidade do treino de força, que é a prioridade pra reter massa magra.",
 };
 
 const FINISHER_HIIT = {
@@ -383,7 +393,14 @@ export default function AppTreino() {
       const d = await lerBruto();
 
       if (d) {
-        setTreinos(d.treinos?.length ? d.treinos : TREINOS_PADRAO);
+        /* Se o programa salvo é de uma versão anterior, resemeia a partir de
+           TREINOS_PADRAO. Só o programa é trocado — séries, marcos e
+           conclusões continuam como estão. */
+        const programaDesatualizado = (d.programaVersao ?? 1) < PROGRAMA_VERSAO;
+        setTreinos(d.treinos?.length && !programaDesatualizado ? d.treinos : TREINOS_PADRAO);
+        if (programaDesatualizado) {
+          mostrarAviso("Programa atualizado para a versão " + PROGRAMA_VERSAO + " — seu histórico foi mantido.", 6000);
+        }
         setMarcos(d.marcos || []);
         setDescanso(d.descanso ?? 90);
         if (d.tema) setTema(d.tema);
@@ -518,7 +535,7 @@ export default function AppTreino() {
 
   const salvar = useCallback(async () => {
     const ok = await gravarBruto({
-      treinos, series, marcos, conclusoes, descanso, sessao, tema,
+      treinos, programaVersao: PROGRAMA_VERSAO, series, marcos, conclusoes, descanso, sessao, tema,
       fimEm, pausadoEm, totalDescanso,
     });
     setSemPersistencia(!ok);
@@ -624,7 +641,7 @@ export default function AppTreino() {
 
   const exportarDados = () => {
     try {
-      const payload = JSON.stringify({ v: 4, exportado: new Date().toISOString(), treinos, series, marcos, conclusoes, descanso, tema }, null, 2);
+      const payload = JSON.stringify({ v: 5, programaVersao: PROGRAMA_VERSAO, exportado: new Date().toISOString(), treinos, series, marcos, conclusoes, descanso, tema }, null, 2);
       const blob = new Blob([payload], { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -647,7 +664,8 @@ export default function AppTreino() {
       try {
         const d = JSON.parse(String(fr.result));
         if (!d || (!d.series && !d.conclusoes)) throw new Error("formato");
-        if (d.treinos?.length) setTreinos(d.treinos);
+        /* backup antigo não sobrescreve o programa novo — só o histórico volta */
+        if (d.treinos?.length && (d.programaVersao ?? 1) >= PROGRAMA_VERSAO) setTreinos(d.treinos);
         if (d.series) setSeries(d.series);
         if (d.marcos) setMarcos(d.marcos);
         if (d.conclusoes) setConclusoes(d.conclusoes);
@@ -1111,7 +1129,7 @@ function TelaSessao({ c, sessao, setSessao, treinos, series, registrar, encerrar
       {/* card herói */}
       <div className="p-4 rounded-2xl" style={{ background: c.raised, border: `1px solid ${c.accent}`, boxShadow: "0 14px 34px -16px rgba(0,0,0,.5)" }}>
         <div className="text-[10px] uppercase tracking-widest mb-1" style={{ color: c.muted, fontFamily: MONO }}>
-          {bar != null ? `barra olímpica · ${bar} kg` : "exercício atual"}
+          {bar ? `barra olímpica · ${bar} kg` : bar === 0 ? "carga por lado · máquina" : "exercício atual"}
         </div>
         <div className="flex items-start justify-between gap-2">
           <h2 className="text-xl font-bold leading-tight">{ex.nome}</h2>
