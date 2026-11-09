@@ -16,9 +16,22 @@ import {
 
 const PLATE_COLORS = {
   25: "#D42D2D", 20: "#1E5BC6", 15: "#E8B417", 10: "#2E9E5B",
-  5: "#D8DBE0", 2.5: "#2B2F36", 1.25: "#8A929E",
+  5: "#D8DBE0", 2.5: "#2B2F36", 2: "#5A616C", 1.25: "#8A929E", 1: "#8A929E",
 };
-const ANILHAS = [25, 20, 15, 10, 5, 2.5, 1.25];
+/* anilhas da academia do Breno (sobe de 1 kg em 1 kg por lado) */
+const ANILHAS = [20, 10, 5, 2.5, 2, 1];
+
+/* --------------------------------------------------- saltos de carga
+   Cada tipo de equipamento sobe de um jeito:
+   - placa:  polia e máquinas de pilha → +1 placa. O peso real da placa é
+             desconhecido; registramos 5 kg por placa (o que importa é a
+             progressão ser sempre medida igual).
+   - halter: próximo halter que existe na academia (leves de 1 em 1 kg até
+             10; pesados de 12 a 30 kg, de 2 em 2).
+   - anilha: barra, barra W, Smith, leg press → +1 kg por lado.
+   - livre/corpo: +1 kg. */
+const PLACA_KG = 5;
+const HALTERES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30];
 
 const THEMES = {
   light: {
@@ -409,13 +422,54 @@ function barraDe(ex) {
 }
 const porLado = (ex) => /por lado/i.test(ex.obs || "") || barraDe(ex) != null;
 
-/* menor salto de carga do equipamento — usado pra arredondar a carga de retorno */
-function passoCarga(ex) {
-  const o = ex.obs || "";
-  if (/anilhas de 5 kg/i.test(o) || /polia|cabo|crossover|cadeira|puxada/i.test(ex.nome)) return 5;
-  if (/por halter/i.test(o)) return 2;
-  if (porLado(ex)) return 2.5;
-  return 1;
+/* tipo de carga do exercício (campo `equip` manda; senão deduz pelo nome) */
+function tipoCarga(ex) {
+  if (ex.equip) return ex.equip;
+  const n = ex.nome.toLowerCase();
+  const o = (ex.obs || "").toLowerCase();
+  if (/halter/.test(n) || /por halter/.test(o)) return "halter";
+  if (/polia|cabo|crossover|cadeira|puxada|remada baixa|scott|peck|voador|flexora|extensora|adutora|abdutora|pallof|panturrilha sentado/.test(n)) return "placa";
+  if (/por lado/.test(o) || barraDe(ex) != null || /barra|smith|leg press|supino|g[êe]meos|eleva[çc][ãa]o p[ée]lvica/.test(n)) return "anilha";
+  if (!ex.alvo && /abdominal|prancha|flex[ãa]o|barra fixa|paralela/.test(n)) return "corpo";
+  return "livre";
+}
+
+/* próxima carga possível para cima (dir = 1) ou para baixo (dir = -1) */
+function proximaCarga(ex, kg, dir = 1) {
+  const v = Number(kg) || 0;
+  if (tipoCarga(ex) === "halter") {
+    if (dir > 0) return HALTERES.find((h) => h > v + 1e-9) ?? v + 2;
+    const menores = HALTERES.filter((h) => h < v - 1e-9);
+    return menores.length ? menores[menores.length - 1] : 0;
+  }
+  const p = tipoCarga(ex) === "placa" ? PLACA_KG : 1;
+  const prox = dir > 0 ? Math.floor(v / p + 1e-9) * p + p : Math.ceil(v / p - 1e-9) * p - p;
+  return Math.max(0, Number(prox.toFixed(2)));
+}
+
+/* arredonda uma carga para o que existe no equipamento */
+function arredondaCarga(ex, kg) {
+  const v = Number(kg) || 0;
+  if (tipoCarga(ex) === "halter") {
+    return HALTERES.reduce((m, h) => (Math.abs(h - v) < Math.abs(m - v) ? h : m), HALTERES[0]);
+  }
+  const p = tipoCarga(ex) === "placa" ? PLACA_KG : 1;
+  return Math.max(0, Math.round(v / p) * p);
+}
+
+const fmtKg = (kg) => String(Number(Number(kg).toFixed(2))).replace(".", ",");
+const placasDe = (kg) => Math.round((Number(kg) || 0) / PLACA_KG);
+
+/* texto do próximo salto, ex.: "+1 placa (55 kg)" */
+function textoSalto(ex, kg) {
+  const prox = proximaCarga(ex, kg, 1);
+  switch (tipoCarga(ex)) {
+    case "placa": return `+1 placa (${fmtKg(prox)} kg · ${placasDe(prox)} placas)`;
+    case "halter": return `halter de ${fmtKg(prox)} kg`;
+    case "anilha": return `+1 kg por lado (${fmtKg(prox)} kg/lado)`;
+    case "corpo": return "mais reps ou um pouco de carga";
+    default: return `+1 kg (${fmtKg(prox)} kg)`;
+  }
 }
 
 /* anilhas por lado pra um peso-alvo de um lado da barra */
@@ -441,15 +495,23 @@ function sugestaoProgressao(ex, anterior) {
   const completou = anterior.repsArr.length >= ex.series;
   const todasNoTeto = completou && anterior.repsArr.every((r) => r >= hi);
   const falhou = anterior.repsArr.some((r) => r < lo);
-  if (todasNoTeto) return { tom: "ok", txt: `Fechou ${hi} em todas as séries — tente +2,5 kg hoje.` };
+  if (todasNoTeto) {
+    const atual = Number(anterior.carga) || 0;
+    const salto = proximaCarga(ex, atual, 1) - atual;
+    const grande = atual > 0 && salto / atual > 0.1 && tipoCarga(ex) !== "anilha";
+    return {
+      tom: "ok",
+      txt: `Fechou ${hi} em todas as séries — hoje: ${textoSalto(ex, atual)}.` +
+        (grande ? ` Se o salto pesar demais (é ~${Math.round((salto / atual) * 100)}%), fique na carga e faça ${hi + 2} reps antes de subir.` : ""),
+    };
+  }
   if (falhou) return { tom: "pr", txt: `Última vez ficou abaixo de ${lo} rep — repita a carga e ganhe as repetições.` };
   return { tom: "muted", txt: `Faixa ${lo}–${hi}. Sobe a carga só quando fechar todas no teto.` };
 }
 
-/* carga de retorno: ~90% da última, arredondada pro passo do equipamento */
-function cargaRetorno(kg, passo) {
-  const alvo = (Number(kg) || 0) * RETORNO.fator;
-  return Math.max(0, Math.round(alvo / passo) * passo);
+/* carga de retorno: ~90% da última, arredondada pro que existe no equipamento */
+function cargaRetorno(kg, ex) {
+  return arredondaCarga(ex, (Number(kg) || 0) * RETORNO.fator);
 }
 
 /* Troca o programa salvo pelo atual quando a versão do programa mudou.
@@ -1216,12 +1278,12 @@ function TelaSessao({ c, sessao, setSessao, treinos, series, registrar, encerrar
 
   const emRetorno = !!anterior && naSemanaDeRetorno() && anterior.data < RETORNO.inicio;
   const sugestao = useMemo(() => (emRetorno
-    ? { tom: "warn", txt: `Retorno: ~90% da última (${String(cargaRetorno(anterior.carga, passoCarga(ex))).replace(".", ",")} kg). Se fechar o teto da faixa com folga, suba no próximo treino.` }
+    ? { tom: "warn", txt: `Retorno: ~90% da última (${fmtKg(cargaRetorno(anterior.carga, ex))} kg). Se fechar o teto da faixa com folga, suba no próximo treino.` }
     : sugestaoProgressao(ex, anterior)), [ex, anterior, emRetorno]);
 
   useEffect(() => {
     const retorno = anterior && naSemanaDeRetorno() && anterior.data < RETORNO.inicio;
-    setCarga(String(retorno ? cargaRetorno(anterior.carga, passoCarga(ex)) : (anterior ? anterior.carga : ex.alvo)));
+    setCarga(String(retorno ? cargaRetorno(anterior.carga, ex) : (anterior ? anterior.carga : ex.alvo)));
     setReps(String(parseInt(ex.reps, 10) || 10));
     setErro("");
     setVideoAberto(false);
@@ -1229,6 +1291,7 @@ function TelaSessao({ c, sessao, setSessao, treinos, series, registrar, encerrar
   }, [ex.nome]); // eslint-disable-line
 
   const bar = barraDe(ex);
+  const tipo = tipoCarga(ex);
   const cargaNum = Number(carga) || 0;
   const anilhas = bar != null && cargaNum > 0 ? calcAnilhas(cargaNum) : null;
 
@@ -1364,6 +1427,17 @@ function TelaSessao({ c, sessao, setSessao, treinos, series, registrar, encerrar
           </div>
         </div>
 
+        {tipo === "placa" && cargaNum > 0 && (
+          <div className="mt-2" style={{ fontFamily: MONO, fontSize: 11, color: c.muted }}>
+            {placasDe(cargaNum)} placas{cargaNum % PLACA_KG ? ` (${fmtKg(cargaNum)} kg não fecha placa inteira)` : ""} · registrado como {PLACA_KG} kg por placa
+          </div>
+        )}
+        {tipo === "halter" && cargaNum > 0 && (
+          <div className="mt-2" style={{ fontFamily: MONO, fontSize: 11, color: c.muted }}>
+            por halter{!HALTERES.includes(cargaNum) ? " · esse halter não existe na academia" : ""}
+          </div>
+        )}
+
         {anilhas && (
           <div className="flex flex-wrap items-center gap-1.5 mt-2" style={{ fontFamily: MONO, fontSize: 11, color: c.muted }}>
             <span>por lado</span>
@@ -1399,7 +1473,10 @@ function TelaSessao({ c, sessao, setSessao, treinos, series, registrar, encerrar
 
         <div className="grid grid-cols-2 gap-3 mt-4">
           <Stepper c={c} rotulo="Repetições" valor={reps} setValor={setReps} passo={1} min={0} />
-          <Stepper c={c} rotulo={bar != null ? "Carga (kg/lado)" : "Carga (kg)"} valor={carga} setValor={setCarga} passo={bar != null ? 2.5 : 1} min={0} />
+          <Stepper c={c}
+            rotulo={tipo === "anilha" ? "Carga (kg/lado)" : tipo === "halter" ? "Carga (kg/halter)" : tipo === "placa" ? `Carga (kg · ${PLACA_KG}/placa)` : "Carga (kg)"}
+            valor={carga} setValor={setCarga} passo={1} min={0}
+            ajusta={(v, dir) => proximaCarga(ex, v, dir)} />
         </div>
 
         {(anterior || sugestao) && (
@@ -1581,8 +1658,10 @@ function ModalFinalizado({ c, info, fechar, cardio }) {
   );
 }
 
-function Stepper({ c, rotulo, valor, setValor, passo, min }) {
-  const muda = (d) => setValor((v) => String(Math.max(min, Number((Number(v || 0) + d).toFixed(2)))));
+function Stepper({ c, rotulo, valor, setValor, passo, min, ajusta }) {
+  const muda = (d) => setValor((v) => String(Math.max(min, Number((ajusta
+    ? ajusta(Number(v || 0), Math.sign(d))
+    : Number(v || 0) + d).toFixed(2)))));
   return (
     <div className="rounded-xl px-2 pt-4 pb-2 relative" style={{ background: c.surface2, border: `1px solid ${c.line}` }}>
       <div className="absolute -top-2 left-3 px-1 text-[9px] uppercase tracking-widest"
@@ -2137,7 +2216,7 @@ function TelaGuia({ c, treinos }) {
       <Secao c={c} titulo="como treinar">
         <Itens c={c} itens={[
           ["Quanto puxar", "termine as séries com 1–3 reps sobrando. Chegar perto da falha faz crescer; ir até a falha em toda série não traz ganho extra e cansa mais (Refalo et al., 2023)."],
-          ["Quando subir a carga", "progressão dupla: fechou TODAS as séries no teto da faixa (ex.: 3×10 em 8–10)? Na próxima, suba o menor salto possível e volte ao começo da faixa."],
+          ["Quando subir a carga", "progressão dupla: fechou TODAS as séries no teto da faixa (ex.: 3×10 em 8–10)? Na próxima, suba o menor salto possível e volte ao começo da faixa. Polia/máquina: +1 placa. Halter: o próximo que existe (de 1 em 1 kg até 10, de 2 em 2 a partir de 12). Barra, Smith e leg press: +1 kg por lado. Se o salto passar de ~10% da carga, faça 2 reps acima do teto antes de subir."],
           ["Descanso", "2–3 min nos exercícios grandes (agachamento, leg press, supino, puxada, remadas); 60–90 s nos isolados. Descansos de 1 min deram menos ganho (Schoenfeld et al., 2016; Singer et al., 2024)."],
           ["Volume", "com os 5 dias são ~9–12 séries por músculo por semana, uma boa faixa para quem treina há menos de 6 meses. Só seg + qua: ~6, que ainda funciona (Schoenfeld et al., 2017; Pelland et al., 2024)."],
           ["Faixas de reps", "6–10 nos exercícios principais, para puxar força; 10–15 nos isolados. Para hipertrofia várias faixas funcionam; o que importa é chegar perto da falha."],
