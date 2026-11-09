@@ -89,7 +89,7 @@ async function gravarBruto(obj) {
    opostos para caber no tempo (Iversen et al., 2021). Cargas de polia/
    máquina em kg (5 kg por placa). "Por lado" = peso de UM lado. */
 
-const PROGRAMA_VERSAO = 6;
+const PROGRAMA_VERSAO = 7; /* v7 = programa v6 + aquecimento próprio de cada treino */
 
 const STATUS = {
   subir: { label: "pode subir", cor: "ok" },
@@ -100,7 +100,7 @@ const STATUS = {
 
 const TREINOS_PADRAO = [
   {
-    id: "A", nome: "Full Body A · Quadríceps + Empurrar", dia: "Segunda", duracao: "~55 min + 20–25 aeróbico", aquecimento: "full",
+    id: "A", nome: "Full Body A · Quadríceps + Empurrar", dia: "Segunda", duracao: "~55 min + 20–25 aeróbico", aquecimento: "v6A",
     aviso: "Amanhã tem handebol: na perna, pare com 2 reps sobrando. Superior pode ir a 1 rep da falha. Bi-sets marcados na observação economizam ~15 min.",
     exercicios: [
       { nome: "Salto no Step (contramovimento)", equip: "corpo", series: 3, reps: "3", descanso: 60, alvo: 0, status: "novo", obs: "Potência para a quadra, antes de cansar. Desce rápido, salta o mais alto possível em cima do step, aterrissa macio e desce andando. Qualidade máxima, sem pressa: é estímulo, não cansaço. Pliometria melhora salto e sprint em atletas de esporte coletivo (Slimani et al., 2016)." },
@@ -113,7 +113,7 @@ const TREINOS_PADRAO = [
     ],
   },
   {
-    id: "B", nome: "Full Body B · Costas + Ombro + Unilateral", dia: "Quarta", duracao: "~55 min + 20–25 aeróbico", aquecimento: "full",
+    id: "B", nome: "Full Body B · Costas + Ombro + Unilateral", dia: "Quarta", duracao: "~55 min + 20–25 aeróbico", aquecimento: "v6B",
     aviso: "Amanhã tem handebol: no búlgaro, pare com 2 reps sobrando. Superior pode ir a 1 rep da falha.",
     exercicios: [
       { nome: "Supino Inclinado com Halteres", equip: "halter", series: 3, reps: "8-10", descanso: 90, alvo: 20, status: "manter", obs: "Por halter. Bi-set com a remada baixa. Última: 12/10/8 com 20. Feche 3×10 antes de ir para 22." },
@@ -127,7 +127,7 @@ const TREINOS_PADRAO = [
     ],
   },
   {
-    id: "C", nome: "Full Body C · Posterior + Puxar", dia: "Sexta", duracao: "~55 min + 20–25 aeróbico", aquecimento: "full",
+    id: "C", nome: "Full Body C · Posterior + Puxar", dia: "Sexta", duracao: "~55 min + 20–25 aeróbico", aquecimento: "v6C",
     aviso: "Dia mais longe do handebol (só terça): perna mais pesada da semana, pode ir a 1–2 reps da falha. Se faltar, faça no fim de semana.",
     exercicios: [
       { nome: "Leg Press 45°", equip: "anilha", series: 3, reps: "8-12", descanso: 150, alvo: 70, status: "manter", obs: "Por lado. Desça até ~90° de joelho sem tirar o quadril do banco; não trave o joelho no topo." },
@@ -247,6 +247,35 @@ const TIPOS_MARCO = [
    segue a ideia do programa OSTRC, que reduziu problemas de ombro em
    jogadores de handebol (Andersson et al., 2017). */
 const AQUECIMENTOS = {
+  v6A: {
+    titulo: "Aquecimento · saltos + agachamento + supino", duracao: "~10 min",
+    itens: [
+      { nome: "Bike leve", detalhe: "5 min em ritmo de conversa, só para esquentar" },
+      { nome: "Quadril e tornozelo", detalhe: "10 agachamentos sem peso + 5 afundos com giro de tronco por perna + 10 balanços de perna (frente e lado)" },
+      { nome: "Ombro", detalhe: "Rotação externa no cabo bem leve, 1×15 por braço, cotovelo colado + crucifixo invertido bem leve, 1×15" },
+      { nome: "Preparar os saltos", detalhe: "2×10 saltitos só no tornozelo + 2 saltos no step a ~70% do esforço" },
+      { nome: "Aproximação", detalhe: "Smith: 1×8 leve, 1×5 com ~75% e 1×2 com ~90% da carga. Supino: 1×10 com ~50% e 1×5 com ~75%." },
+    ],
+  },
+  v6B: {
+    titulo: "Aquecimento · ombro + quadril unilateral", duracao: "~8 min",
+    itens: [
+      { nome: "Bike leve", detalhe: "5 min em ritmo de conversa" },
+      { nome: "Ombro", detalhe: "Rotação externa no cabo leve, 1×15 por braço + “livro aberto” deitado de lado, 8 por lado" },
+      { nome: "Quadril", detalhe: "10 balanços de perna para o lado + 5 afundos laterais por lado + 10 pontes de glúteo" },
+      { nome: "Aproximação", detalhe: "Supino inclinado: 1×10 com ~50% da carga. Búlgaro: 1×6 por perna sem peso antes das séries." },
+    ],
+  },
+  v6C: {
+    titulo: "Aquecimento · posterior + leg press", duracao: "~10 min",
+    itens: [
+      { nome: "Bike leve", detalhe: "5 min em ritmo de conversa" },
+      { nome: "Posterior e quadril", detalhe: "10 balanços de perna para a frente + 8 “bom dia” sem peso (quadril para trás, costas retas) + 10 pontes de glúteo" },
+      { nome: "Adutor", detalhe: "5 afundos laterais por lado — prepara a virilha para o Copenhagen" },
+      { nome: "Ombro", detalhe: "Rotação externa no cabo leve, 1×15 por braço" },
+      { nome: "Aproximação", detalhe: "Leg press: 1×10 com ~50%, 1×5 com ~75% e 1×3 com ~90%. Stiff: 1×8 com halter leve." },
+    ],
+  },
   full: {
     titulo: "Aquecimento · corpo todo", duracao: "~8 min",
     itens: [
