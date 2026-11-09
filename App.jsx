@@ -80,15 +80,16 @@ async function gravarBruto(obj) {
 }
 
 /* --------------------------------------------------- programa do Breno
-   Programa v5 (26/10/2026) — foco em hipertrofia e força, perdendo gordura
-   devagar. Segunda e quarta são os dias ESSENCIAIS: cada uma trabalha o
-   corpo todo, então só elas já dão frequência 2x/semana por grupo
-   (o histórico mostrou que terça/quinta/sexta costumam cair por falta de
-   tempo). Terça e quinta são curtas e sem perna (handebol 22h). Sexta é a
-   perna mais pesada, longe do handebol. Cargas de polia/máquina em kg
-   (anilha de máquina = 5 kg). "Por lado" = peso de UM lado. */
+   Programa v6 (09/11/2026) — recomposição: perder gordura mantendo o peso
+   e ganhando massa magra, sem dieta controlada (treino + aeróbico fazem o
+   gasto). Breno tem bastante experiência (CrossFit competitivo); o desafio
+   é constância. Seg, qua e sex: corpo todo (~55 min) + 20–25 min de
+   aeróbico zona 2. Ter e qui: handebol 22h (ponta esquerda). Fim de semana:
+   aeróbico longo + reposição do treino que faltou. Bi-sets de grupos
+   opostos para caber no tempo (Iversen et al., 2021). Cargas de polia/
+   máquina em kg (5 kg por placa). "Por lado" = peso de UM lado. */
 
-const PROGRAMA_VERSAO = 5;
+const PROGRAMA_VERSAO = 6;
 
 const STATUS = {
   subir: { label: "pode subir", cor: "ok" },
@@ -99,65 +100,52 @@ const STATUS = {
 
 const TREINOS_PADRAO = [
   {
-    id: "A", nome: "Full Body A · Essencial", dia: "Segunda", duracao: "60–70 min", aquecimento: "full",
-    aviso: "Dia essencial. Se a semana apertar, garanta segunda e quarta: as duas juntas já treinam o corpo todo 2x.",
+    id: "A", nome: "Full Body A · Quadríceps + Empurrar", dia: "Segunda", duracao: "~55 min + 20–25 aeróbico", aquecimento: "full",
+    aviso: "Amanhã tem handebol: na perna, pare com 2 reps sobrando. Superior pode ir a 1 rep da falha. Bi-sets marcados na observação economizam ~15 min.",
     exercicios: [
-      { nome: "Agachamento no Smith", series: 3, reps: "6-8", descanso: 180, alvo: 10, status: "novo", obs: "Por lado. Principal exercício de perna da semana. Novo: comece com ~10 kg por lado e anote; enquanto a técnica estiver firme, suba 2,5–5 kg por sessão. Pés um pouco à frente do corpo, desça até a coxa ficar paralela ao chão (ou um pouco abaixo, se o quadril não arredondar)." },
-      { nome: "Supino Reto na Máquina (Hack)", series: 3, reps: "6-8", descanso: 150, alvo: 27.5, status: "subir", obs: "Por lado. Faixa mais pesada (6–8) para puxar força. Você fazia 8–10 reps com 25 kg; com menos reps, 27,5 kg deve entrar." },
-      { nome: "Puxada Frontal na Polia", series: 3, reps: "8-10", descanso: 120, alvo: 50, status: "manter", obs: "Travou em 55 kg e caiu para 50 no fim do cutting. Feche 3×10 limpo com 50 antes de voltar a 55. Puxe até o queixo, sem jogar o tronco para trás." },
-      { nome: "Stiff com Halteres", series: 3, reps: "8-10", descanso: 120, alvo: 0, status: "novo", obs: "Por halter. Joelho levemente dobrado, leve o quadril para trás até sentir o posterior alongar (halteres no meio da canela), costas neutras. Comece leve (12–14 kg) e anote." },
-      { nome: "Remada Curvada c/ Halteres", series: 3, reps: "8-10", descanso: 120, alvo: 26, status: "subir", obs: "Por halter. Fechou 3×10 com 24 kg duas vezes seguidas — hora de 26 kg." },
-      { nome: "Elevação Lateral com Halteres", series: 3, reps: "12-15", descanso: 60, alvo: 10, status: "manter", obs: "Por halter. Com 12 kg as reps caíram para 10. Fique em 10 kg até fechar 3×15. Suba até a linha do ombro, sem encolher o trapézio." },
+      { nome: "Salto no Step (contramovimento)", equip: "corpo", series: 3, reps: "3", descanso: 60, alvo: 0, status: "novo", obs: "Potência para a quadra, antes de cansar. Desce rápido, salta o mais alto possível em cima do step, aterrissa macio e desce andando. Qualidade máxima, sem pressa: é estímulo, não cansaço. Pliometria melhora salto e sprint em atletas de esporte coletivo (Slimani et al., 2016)." },
+      { nome: "Agachamento no Smith", equip: "anilha", series: 3, reps: "6-8", descanso: 180, alvo: 50, status: "manter", obs: "Por lado. Última: 50×6/6/6. Fique em 50 até fechar 3×8, aí +1 kg por lado. Coxa pelo menos paralela ao chão. Amanhã tem handebol: 2 reps sobrando." },
+      { nome: "Supino Reto com Barra", equip: "anilha", series: 3, reps: "6-8", descanso: 150, alvo: 30, status: "manter", obs: "Por lado. Última: 30×6/6. Bi-set com a puxada: supino, 60–90 s, puxada, 60–90 s, repete. Escápulas presas no banco, barra desce na linha do mamilo." },
+      { nome: "Puxada Frontal na Polia", equip: "placa", series: 3, reps: "8-10", descanso: 90, alvo: 50, status: "manter", obs: "Bi-set com o supino. Última: 45×10/8 e 50×8. Feche 3×10 com 50 antes de subir 1 placa. Puxe até o queixo, sem jogar o tronco para trás." },
+      { nome: "Cadeira Flexora (Sentado)", equip: "placa", series: 3, reps: "10-12", descanso: 90, alvo: 30, status: "novo", obs: "Sentado, o posterior trabalha alongado e cresceu mais que deitado (Maeo et al., 2021). Descida em 2–3 s. Comece com ~30 e anote." },
+      { nome: "Elevação Lateral com Halteres", equip: "halter", series: 3, reps: "12-15", descanso: 60, alvo: 10, status: "manter", obs: "Por halter. Bi-set com o tríceps francês. Última: 10×12/12/12. Fique em 10 até fechar 3×15 (o próximo halter, 12, é +20%)." },
+      { nome: "Tríceps Francês na Polia (corda)", equip: "placa", series: 3, reps: "10-12", descanso: 60, alvo: 15, status: "manter", obs: "Bi-set com a elevação lateral. Braços acima da cabeça: o tríceps cresceu mais nessa posição (Maeo et al., 2022). Última: 15×10/10/10." },
     ],
   },
   {
-    id: "B", nome: "Superior Curto · Peito · Costas · Braço", dia: "Terça", duracao: "35–45 min", aquecimento: "superior",
-    aviso: "Handebol às 22h: treino curto e sem perna. Termine cada série com 1–2 reps sobrando, nada de falha antes da quadra.",
+    id: "B", nome: "Full Body B · Costas + Ombro + Unilateral", dia: "Quarta", duracao: "~55 min + 20–25 aeróbico", aquecimento: "full",
+    aviso: "Amanhã tem handebol: no búlgaro, pare com 2 reps sobrando. Superior pode ir a 1 rep da falha.",
     exercicios: [
-      { nome: "Crossover na Polia", series: 3, reps: "10-15", descanso: 75, alvo: 15, status: "manter", obs: "Na última sessão fez 12/15/12 entre 15 e 20 kg. Fique em 15 kg até fechar 3×15." },
-      { nome: "Crucifixo Invertido com Halteres", series: 3, reps: "12-15", descanso: 60, alvo: 7, status: "manter", obs: "Por halter. Tronco quase paralelo ao chão. Deltoide posterior e escápula, importantes para o ombro de quem arremessa." },
-      { nome: "Rosca Direta (Barra W)", series: 3, reps: "8-12", descanso: 75, alvo: 10, status: "manter", obs: "Por lado. Última: 12/12/10 com 10 kg. Quando fechar 3×12, sobe." },
-      { nome: "Tríceps Francês na Polia (corda)", series: 3, reps: "10-12", descanso: 75, alvo: 15, status: "novo", obs: "De costas para a polia, braços acima da cabeça, cotovelos apontando para a frente. Com o braço acima da cabeça o tríceps cresceu mais do que na posição neutra (Maeo et al., 2022). Comece com ~15 kg (3 anilhas)." },
-      { nome: "Elevação Lateral no Cabo", series: 2, reps: "12-15", descanso: 60, alvo: 0, status: "novo", obs: "Cabo passando pela frente do corpo, começando com o braço cruzado: tensão no ponto alongado. Comece leve, o cabo pesa diferente do halter." },
+      { nome: "Supino Inclinado com Halteres", equip: "halter", series: 3, reps: "8-10", descanso: 90, alvo: 20, status: "manter", obs: "Por halter. Bi-set com a remada baixa. Última: 12/10/8 com 20. Feche 3×10 antes de ir para 22." },
+      { nome: "Remada Baixa no Cabo", equip: "placa", series: 3, reps: "8-10", descanso: 90, alvo: 55, status: "subir", obs: "Bi-set com o supino inclinado. Fazia 3×12 com 50, então na faixa 8–10 vai 55 (+1 placa). Escápulas para trás antes de puxar." },
+      { nome: "Agachamento Búlgaro", equip: "halter", series: 3, reps: "8-10 cada perna", descanso: 90, alvo: 8, status: "novo", obs: "Por halter. Um halter em cada mão, perna de trás só apoia. Comece com ~8 kg. Unilateral: corrige diferença entre as pernas, útil para quem salta e muda de direção na ponta." },
+      { nome: "Desenvolvimento com Halteres", equip: "halter", series: 3, reps: "8-10", descanso: 90, alvo: 14, status: "manter", obs: "Por halter. Bi-set com o crucifixo invertido. Com 15 a última série caiu para 5; feche 3×10 com 14 primeiro." },
+      { nome: "Crucifixo Invertido com Halteres", equip: "halter", series: 3, reps: "12-15", descanso: 60, alvo: 6, status: "manter", obs: "Por halter. Bi-set com o desenvolvimento. Deltoide posterior e escápula: proteção do ombro de quem arremessa. Pode fazer no peck deck (posição de costas) se preferir." },
+      { nome: "Rosca Scott", equip: "placa", series: 3, reps: "8-12", descanso: 60, alvo: 25, status: "manter", obs: "Na máquina Scott. Bi-set com o tríceps testa. Última: 20×10, 25×10/10. Desça até quase estender o cotovelo." },
+      { nome: "Tríceps Testa na Polia", equip: "placa", series: 3, reps: "10-12", descanso: 60, alvo: 25, status: "manter", obs: "Bi-set com a rosca Scott. Última: 20×10, 25×10/12. Cotovelo parado." },
+      { nome: "Pallof Press na Polia", equip: "placa", series: 2, reps: "10-12", descanso: 45, alvo: 20, status: "manter", obs: "Por lado do corpo. Anti-rotação do tronco: base para arremesso e contato." },
     ],
   },
   {
-    id: "C", nome: "Full Body B · Essencial", dia: "Quarta", duracao: "60–70 min", aquecimento: "full",
-    aviso: "Dia essencial. Amanhã tem handebol: na perna, pare com 2 reps sobrando. O superior pode ir mais perto da falha.",
+    id: "C", nome: "Full Body C · Posterior + Puxar", dia: "Sexta", duracao: "~55 min + 20–25 aeróbico", aquecimento: "full",
+    aviso: "Dia mais longe do handebol (só terça): perna mais pesada da semana, pode ir a 1–2 reps da falha. Se faltar, faça no fim de semana.",
     exercicios: [
-      { nome: "Agachamento Búlgaro", series: 3, reps: "8-10 cada perna", descanso: 90, alvo: 0, status: "novo", obs: "Por halter. Um halter em cada mão, a perna de trás só apoia. Comece com 6–8 kg e anote. Por ser unilateral, corrige diferença entre as pernas, o que é útil no handebol." },
-      { nome: "Supino Inclinado com Halteres", series: 3, reps: "8-10", descanso: 120, alvo: 20, status: "manter", obs: "Por halter. Última: 12/10/8 com 20 kg. Feche 3×10 antes de subir para 22." },
-      { nome: "Remada Baixa no Cabo", series: 3, reps: "8-10", descanso: 120, alvo: 55, status: "subir", obs: "Fazia 12 reps com 50–55 kg; na faixa de 8–10, 55 kg. Leve as escápulas para trás antes de puxar." },
-      { nome: "Cadeira Flexora (Sentado)", series: 3, reps: "10-12", descanso: 90, alvo: 30, status: "novo", obs: "Substitui a mesa flexora (deitado). Sentado, o posterior trabalha mais alongado e cresceu mais em estudo (Maeo et al., 2021). Na mesa você usava 35 kg; comece com ~30." },
-      { nome: "Desenvolvimento com Halteres", series: 3, reps: "8-10", descanso: 120, alvo: 14, status: "manter", obs: "Por halter. Com 15 kg a última série caiu para 5 reps. Volte para 14 kg e feche 3×10." },
-      { nome: "Gêmeos em Pé", series: 3, reps: "10-15", descanso: 60, alvo: 40, status: "manter", obs: "Por lado. Pausa de 1–2 s embaixo, com a panturrilha alongada, e amplitude completa." },
-    ],
-  },
-  {
-    id: "D", nome: "Braços + Antebraço · Curto", dia: "Quinta", duracao: "35–45 min", aquecimento: "superior",
-    aviso: "Handebol às 22h: treino curto e sem perna. Evite falha nos exercícios de pegada para não chegar na quadra com a mão cansada.",
-    exercicios: [
-      { nome: "Rosca Scott", series: 3, reps: "8-12", descanso: 75, alvo: 0, status: "novo", obs: "No banco Scott, com halter ou barra W. Desça até quase estender o cotovelo: a parte alongada do movimento é a que mais estimula. Comece leve e anote." },
-      { nome: "Tríceps Testa na Polia", series: 3, reps: "10-12", descanso: 75, alvo: 30, status: "subir", obs: "6 anilhas de 5 kg. Fechou 12/12/10 com 30 kg; quando fechar 3×12, sobe. Cotovelo parado." },
-      { nome: "Rosca Martelo", series: 3, reps: "10-12", descanso: 60, alvo: 14, status: "subir", obs: "Por halter. Fechou 3×12 com 12 kg, então suba para 14." },
-      { nome: "Rosca Inversa (Barra W)", series: 2, reps: "12-15", descanso: 60, alvo: 7.5, status: "manter", obs: "Por lado. Pegada pronada, cotovelo parado. Principal exercício de massa do antebraço (braquiorradial)." },
-      { nome: "Rosca de Punho (Barra W)", series: 2, reps: "15-20", descanso: 45, alvo: 10, status: "subir", obs: "Por lado. Fechou 3×20 com 7,5 kg, então suba. Antebraço apoiado no banco, deixando o punho estender bem embaixo." },
-      { nome: "Pallof Press na Polia", series: 2, reps: "10-12", descanso: 45, alvo: 15, status: "novo", obs: "Por lado. Anti-rotação do tronco, que ajuda direto no arremesso e no contato do handebol." },
-    ],
-  },
-  {
-    id: "E", nome: "Inferior + Core · Complementar", dia: "Sexta", duracao: "50–60 min", aquecimento: "inferior",
-    aviso: "Dia mais longe do handebol (só volta na terça): é a perna mais pesada da semana. Pode ir a 1–2 reps da falha.",
-    exercicios: [
-      { nome: "Leg Press 45°", series: 3, reps: "8-12", descanso: 150, alvo: 70, status: "manter", obs: "Por lado. Exercício principal da sexta. Desça até ~90° de joelho sem tirar o quadril do banco e não trave o joelho no topo." },
-      { nome: "Elevação Pélvica com Barra", series: 3, reps: "8-12", descanso: 90, alvo: 0, status: "novo", obs: "Costas apoiadas no banco e proteção na barra. Se a barra livre incomodar, faça no Smith. Contraia o glúteo forte no topo. Comece leve e anote." },
-      { nome: "Cadeira Flexora (Sentado)", series: 3, reps: "10-12", descanso: 90, alvo: 30, status: "novo", obs: "Segunda dose da semana. Faça a descida em 2–3 s." },
-      { nome: "Cadeira Extensora", series: 3, reps: "10-15", descanso: 60, alvo: 55, status: "manter", obs: "11 anilhas de 5 kg. Pausa de 1 s com a perna estendida." },
-      { nome: "Panturrilha Sentado", series: 3, reps: "12-15", descanso: 60, alvo: 0, status: "novo", obs: "Joelho a 90°, foco no sóleo. Pausa embaixo." },
-      { nome: "Abdominal Infra (elevação de pernas)", series: 3, reps: "10-15", descanso: 45, alvo: 0, status: "novo", obs: "Controle a descida, sem balançar o tronco." },
+      { nome: "Leg Press 45°", equip: "anilha", series: 3, reps: "8-12", descanso: 150, alvo: 70, status: "manter", obs: "Por lado. Desça até ~90° de joelho sem tirar o quadril do banco; não trave o joelho no topo." },
+      { nome: "Stiff com Halteres", equip: "halter", series: 3, reps: "8-10", descanso: 120, alvo: 24, status: "manter", obs: "Por halter. Última: 24×8/8/8. Quadril para trás até o posterior alongar, costas neutras. Feche 3×10 e vá para 26." },
+      { nome: "Remada Curvada c/ Halteres", equip: "halter", series: 3, reps: "8-10", descanso: 90, alvo: 22, status: "manter", obs: "Por halter. Bi-set com o crossover. Para poupar a lombar depois do stiff, faça com o peito apoiado no banco inclinado (mesma carga serve). Última: 22×8/8/8." },
+      { nome: "Crossover na Polia", equip: "placa", series: 3, reps: "10-15", descanso: 90, alvo: 15, status: "manter", obs: "Bi-set com a remada. Última: 15×10/10/10. Fique em 15 até fechar 3×15." },
+      { nome: "Nórdico (excêntrico)", equip: "corpo", series: 3, reps: "4-6", descanso: 90, alvo: 0, status: "novo", obs: "Joelhos no colchonete, pés presos (parceiro ou rolo da mesa flexora). Desça o mais devagar possível, segure com as mãos no fim e volte empurrando o chão. Incluir o nórdico reduziu as lesões de posterior pela metade (van Dyk et al., 2019). Na 1ª semana faça 2×4: dá dor muscular." },
+      { nome: "Copenhagen (adutor)", equip: "corpo", series: 2, reps: "20-30 s cada lado", descanso: 45, alvo: 0, status: "novo", obs: "Prancha lateral com a perna de cima apoiada no banco (joelho apoiado = mais fácil; pé apoiado = mais difícil). Protege a virilha em quem corta e muda de direção (Harøy et al., 2019)." },
+      { nome: "Rosca Martelo", equip: "halter", series: 3, reps: "10-12", descanso: 60, alvo: 12, status: "manter", obs: "Por halter. Bi-set com a elevação lateral no cabo. Última: 12×10/10/10. Trabalha bíceps e antebraço juntos." },
+      { nome: "Elevação Lateral no Cabo", equip: "placa", series: 3, reps: "12-15", descanso: 60, alvo: 10, status: "manter", obs: "Bi-set com a rosca martelo. Cabo passando pela frente do corpo. Última: 10×12/12." },
     ],
   },
 ];
+
+/* Exercícios que mudaram de nome — o histórico é renomeado na migração */
+const RENOMEAR_EXERCICIOS = {
+  "Supino Reto na Máquina (Hack)": "Supino Reto com Barra",
+};
 
 /* Histórico importado do chat. Formato: [data, treino, exercício, [[reps, carga], ...]] */
 const HISTORICO_IMPORTADO = [
@@ -209,10 +197,11 @@ const MARCOS_IMPORTADOS = [
 
 /* marcos do programa atual — entram na migração (substituem marcos de revisão antigos) */
 const MARCOS_PROGRAMA = [
-  { data: "2026-10-26", tipo: "ciclo", nota: "Programa novo — foco em hipertrofia e força. Seg e qua essenciais (corpo todo); ter, qui e sex complementam. Semana de retorno: ~90% da carga." },
-  { data: "2026-12-14", tipo: "revisao", nota: "Fim do mesociclo (7 semanas) — exportar backup e pedir ao Claude a revisão: progressão de carga, peso/cintura, trocar variações, avaliar deload." },
+  { data: "2026-10-26", tipo: "ciclo", nota: "Programa v5 — hipertrofia e força. Seg e qua essenciais (corpo todo); ter, qui e sex complementam." },
+  { data: "2026-11-09", tipo: "ciclo", nota: "Programa v6 — recomposição. Seg/qua/sex corpo todo (~55 min) + 20–25 min de aeróbico zona 2; fim de semana: aeróbico longo e reposição. Prevenção para a quadra: saltos, nórdico, Copenhagen." },
+  { data: "2026-11-28", tipo: "revisao", nota: "Férias da faculdade (sem handebol até o ano que vem) — exportar backup e pedir ao Claude o plano de férias." },
 ];
-const MARCOS_REMOVIDOS = ["2026-10-27", "2026-10-19", "2026-12-07"];
+const MARCOS_REMOVIDOS = ["2026-10-27", "2026-10-19", "2026-12-07", "2026-12-14"];
 
 /* semana de retorno depois de 3 semanas sem academia (só handebol) */
 const RETORNO = {
@@ -294,20 +283,20 @@ const AQUECIMENTOS = {
    isso não entra extra em dia de handebol, que já é intenso e depende de
    explosão. */
 const CARDIO_POR_DIA = {
-  1: { nivel: "liberado", txt: "Bike ou esteira, 20–30 min leve. Amanhã tem handebol, então nada de tiro/intervalado." },
-  2: { nivel: "evitar", txt: "Dia de handebol (22h). O jogo já é o seu cardio intenso; somar mais só aumenta o cansaço sem trazer ganho." },
-  3: { nivel: "leve", txt: "Opcional e curto: 15–20 min de bike bem leve. Você treinou perna e amanhã tem handebol. Se a perna estiver pesada, pule." },
-  4: { nivel: "evitar", txt: "Dia de handebol (22h). O jogo já é o seu cardio intenso; somar mais só aumenta o cansaço sem trazer ganho." },
-  5: { nivel: "liberado", txt: "Melhor dia da semana: 20–30 min de bike ou caminhada inclinada na esteira. Você tem o fim de semana para recuperar." },
-  6: { nivel: "liberado", txt: "Fim de semana: caminhada ou bike leve se quiser. O mais importante é andar (8–10 mil passos)." },
-  0: { nivel: "liberado", txt: "Fim de semana: caminhada ou bike leve se quiser. O mais importante é andar (8–10 mil passos)." },
+  1: { nivel: "liberado", txt: "Depois do treino: 20–25 min de caminhada inclinada na esteira (5–6 km/h, 8–12% de inclinação), zona 2. Poupa o quadríceps que já agachou. Amanhã tem handebol: nada de tiro." },
+  2: { nivel: "evitar", txt: "Dia de handebol (22h). O jogo já é o seu intervalado: somar mais só aumenta o cansaço." },
+  3: { nivel: "liberado", txt: "Depois do treino: 20–25 min de bike em zona 2. Bike atrapalha menos o ganho de força e massa que corrida (Wilson et al., 2012). Amanhã tem handebol: nada de tiro." },
+  4: { nivel: "evitar", txt: "Dia de handebol (22h). O jogo já é o seu intervalado: somar mais só aumenta o cansaço." },
+  5: { nivel: "liberado", txt: "Depois do treino: 20–25 min de bike em zona 2. Você tem o fim de semana para recuperar." },
+  6: { nivel: "liberado", txt: "Fim de semana: 40–45 min de zona 2 (esteira inclinada, bike ou caminhada na rua) — o aeróbico mais longo da semana. Faltou algum treino? Faça ele hoje e encurte o aeróbico para 20 min." },
+  0: { nivel: "liberado", txt: "Se o aeróbico longo não saiu no sábado, faça hoje: 40–45 min de zona 2. Senão, descanso e 8–10 mil passos." },
 };
 const NIVEL_CARDIO = {
   liberado: { label: "liberado", cor: "ok" },
   leve: { label: "só leve", cor: "warn" },
   evitar: { label: "evitar", cor: "pr" },
 };
-const INTENSIDADE_CARDIO = "Leve = dá para conversar, mas não para cantar (~60–70% da FC máx).";
+const INTENSIDADE_CARDIO = "Zona 2 = dá para conversar em frases, mas não para cantar (~60–70% da FC máx).";
 
 const dowDe = (iso) => new Date(`${iso}T12:00:00`).getDay();
 const semanaEspecial = (iso = hoje()) => SEMANAS_ESPECIAIS.find((s) => iso >= s.inicio && iso <= s.fim) || null;
@@ -523,7 +512,9 @@ function migrarPrograma(d) {
     ...(d.marcos || []).filter((m) => !MARCOS_REMOVIDOS.includes(m.data) && !datasNovas.has(m.data)),
     ...MARCOS_PROGRAMA,
   ];
-  return { ...d, treinos: TREINOS_PADRAO, marcos, programaVersao: PROGRAMA_VERSAO, migrou: true };
+  const series = (d.series || []).map((s) =>
+    RENOMEAR_EXERCICIOS[s.exercicio] ? { ...s, exercicio: RENOMEAR_EXERCICIOS[s.exercicio] } : s);
+  return { ...d, treinos: TREINOS_PADRAO, series, marcos, programaVersao: PROGRAMA_VERSAO, migrou: true };
 }
 
 function inicioSemanaISO() {
@@ -1642,7 +1633,7 @@ function ModalFinalizado({ c, info, fechar, cardio }) {
 
         {!auto && (
           <div className="mt-4 px-3 py-2.5 rounded-xl text-left text-sm" style={{ background: c.surface2 }}>
-            <span className="font-semibold" style={{ color: c[nivel.cor] }}>Cardio opcional · {nivel.label}</span>
+            <span className="font-semibold" style={{ color: c[nivel.cor] }}>Aeróbico · {nivel.label}</span>
             <span style={{ color: c.muted }}> — {rec.txt}</span>
           </div>
         )}
@@ -1940,7 +1931,7 @@ function CardCardio({ c, cardios, registrar, remover, abertoInicial = false }) {
           <Bike size={24} style={{ color: c[nivel.cor] }} />
         </div>
         <div className="flex-1 min-w-0">
-          <div className="font-semibold">Cardio <span className="text-sm font-normal" style={{ color: c.muted }}>· opcional</span></div>
+          <div className="font-semibold">Aeróbico <span className="text-sm font-normal" style={{ color: c.muted }}>· zona 2</span></div>
           <div className="text-sm" style={{ color: c[nivel.cor] }}>
             hoje: {nivel.label}
             {minutosHoje > 0 && <span style={{ color: c.ok }}> · {minutosHoje} min feitos</span>}
@@ -2158,6 +2149,14 @@ const REFERENCIAS = [
   "Behm et al. (2016). Acute effects of muscle stretching on physical performance. Appl Physiol Nutr Metab.",
   "Andersson et al. (2017). Preventing overuse shoulder injuries among throwing athletes (OSTRC, 660 jogadores de handebol). Br J Sports Med 51(14).",
   "Garthe et al. (2011). Effect of two different weight-loss rates on body composition and strength in elite athletes. Int J Sport Nutr Exerc Metab.",
+  "Iversen et al. (2021). No time to lift? Designing time-efficient training programs for strength and hypertrophy. Sports Med 51.",
+  "Willis et al. (2012). Effects of aerobic and/or resistance training on body mass and fat mass in overweight or obese adults. J Appl Physiol 113.",
+  "Donnelly et al. (2009). ACSM position stand: physical activity for weight loss and prevention of weight regain. Med Sci Sports Exerc 41(2).",
+  "Wilson et al. (2012). Concurrent training: a meta-analysis examining interference of aerobic and resistance exercises. J Strength Cond Res 26(8).",
+  "Morton et al. (2018). Protein supplementation and resistance training-induced gains in muscle mass and strength: meta-analysis. Br J Sports Med 52.",
+  "van Dyk, Behan & Whiteley (2019). Including the Nordic hamstring exercise in injury prevention programmes halves the rate of hamstring injuries (8459 atletas). Br J Sports Med 53.",
+  "Harøy et al. (2019). The Adductor Strengthening Programme prevents groin problems among male football players. Br J Sports Med 53.",
+  "Slimani et al. (2016). Effects of plyometric training on physical fitness in team sport athletes: a systematic review. J Hum Kinet 53.",
 ];
 
 function Secao({ c, titulo, children }) {
@@ -2182,8 +2181,9 @@ function Itens({ c, itens }) {
 function TelaGuia({ c, treinos }) {
   const dias = [
     ...treinos.map((t) => ({ dia: t.dia, id: t.id, nome: t.nome, duracao: t.duracao, dow: DOW[t.dia] })),
-    { dia: "Sáb/Dom", id: "—", nome: "Descanso · caminhar 8–10 mil passos", duracao: "", dow: 6 },
-  ];
+    { dia: "Ter/Qui", id: "H", nome: "Handebol · sem musculação", duracao: "", dow: 2 },
+    { dia: "Sáb/Dom", id: "Z2", nome: "Aeróbico longo · reposição do treino que faltou", duracao: "40–45 min", dow: 6 },
+  ].sort((a, b) => ((a.dow || 7) - (b.dow || 7)));
   return (
     <div className="px-4 space-y-4">
       <Secao c={c} titulo="sua semana">
@@ -2208,8 +2208,8 @@ function TelaGuia({ c, treinos }) {
           })}
         </div>
         <p className="text-xs mt-3" style={{ color: c.muted }}>
-          Segunda e quarta são essenciais: cada uma treina o corpo todo, então só as duas já dão 2x por semana para cada músculo.
-          Terça, quinta e sexta somam volume. Se faltar tempo, são essas que podem cair.
+          Três treinos de corpo todo: cada músculo leva ~9 séries por semana, divididas em 2–3 dias. Se a sexta cair, faça o C no fim de semana.
+          Se só seg e qua saírem, ainda dá ~6 séries por músculo, que mantém e ainda faz progredir.
         </p>
       </Secao>
 
@@ -2218,19 +2218,23 @@ function TelaGuia({ c, treinos }) {
           ["Quanto puxar", "termine as séries com 1–3 reps sobrando. Chegar perto da falha faz crescer; ir até a falha em toda série não traz ganho extra e cansa mais (Refalo et al., 2023)."],
           ["Quando subir a carga", "progressão dupla: fechou TODAS as séries no teto da faixa (ex.: 3×10 em 8–10)? Na próxima, suba o menor salto possível e volte ao começo da faixa. Polia/máquina: +1 placa. Halter: o próximo que existe (de 1 em 1 kg até 10, de 2 em 2 a partir de 12). Barra, Smith e leg press: +1 kg por lado. Se o salto passar de ~10% da carga, faça 2 reps acima do teto antes de subir."],
           ["Descanso", "2–3 min nos exercícios grandes (agachamento, leg press, supino, puxada, remadas); 60–90 s nos isolados. Descansos de 1 min deram menos ganho (Schoenfeld et al., 2016; Singer et al., 2024)."],
-          ["Volume", "com os 5 dias são ~9–12 séries por músculo por semana, uma boa faixa para quem treina há menos de 6 meses. Só seg + qua: ~6, que ainda funciona (Schoenfeld et al., 2017; Pelland et al., 2024)."],
+          ["Volume", "~9 séries duras por músculo por semana nos 3 treinos. Acima disso o ganho extra é pequeno e o custo de tempo e cansaço (com handebol 2x) é alto (Schoenfeld et al., 2017; Pelland et al., 2024)."],
+          ["Bi-sets", "dois exercícios de grupos diferentes alternados (ex.: supino + puxada), descansando 60–90 s entre eles. Corta o tempo da sessão sem perder ganho (Iversen et al., 2021). Não use nos exercícios principais de perna."],
+          ["Prevenção para a quadra", "saltos (potência), nórdico (posterior) e Copenhagen (virilha) entram porque ponta corre, salta e corta o tempo todo. O nórdico reduziu pela metade as lesões de posterior (van Dyk et al., 2019); o programa de adutor reduziu os problemas de virilha no futebol (Harøy et al., 2019)."],
           ["Faixas de reps", "6–10 nos exercícios principais, para puxar força; 10–15 nos isolados. Para hipertrofia várias faixas funcionam; o que importa é chegar perto da falha."],
           ["Posição alongada", "flexora sentada e tríceps com o braço acima da cabeça cresceram mais que as versões tradicionais (Maeo et al., 2021; 2022)."],
         ]} />
       </Secao>
 
-      <Secao c={c} titulo="cardio (opcional)">
+      <Secao c={c} titulo="aeróbico e perda de gordura">
         <Itens c={c} itens={[
-          ["Atrapalha o ganho de massa?", "não. Somar cardio à musculação não reduziu hipertrofia nem força máxima; a força explosiva foi a única afetada (Schumann et al., 2022)."],
-          ["Por isso, em dia de handebol: evitar", "o jogo já é intenso e depende de explosão. Cardio extra só aumenta o cansaço."],
-          ["Sempre depois da musculação", "fazer o cardio antes reduziu o ganho de força nas pernas (Eddens et al., 2018)."],
-          ["Leve", "ritmo em que dá para conversar mas não cantar, 20–30 min. Bike tem menos impacto que corrida para joelho e tornozelo, que já trabalham no handebol."],
-          ["O que mais ajuda", "8–10 mil passos por dia. Atrapalha o mínimo e ajuda a gastar energia."],
+          ["Por que entra", "sem dieta controlada, o gasto vem do movimento. Aeróbico foi o que mais tirou gordura; musculação foi o que mais ganhou massa magra; os dois juntos deram a melhor composição corporal (Willis et al., 2012)."],
+          ["Quanto", "3× 20–25 min depois do treino + 40–45 min no fim de semana + 2 jogos de handebol ≈ 250–300 min de atividade por semana — a faixa que realmente mexe no peso e na gordura (Donnelly et al., 2009)."],
+          ["Zona 2", "dá para conversar em frases, mas não para cantar. Sem extremo: o intervalado da semana já é o handebol."],
+          ["Atrapalha o ganho de massa?", "não: somar aeróbico à musculação não reduziu hipertrofia nem força máxima (Schumann et al., 2022). Bike atrapalha menos que corrida (Wilson et al., 2012)."],
+          ["Sempre depois da musculação", "fazer o aeróbico antes reduziu o ganho de força nas pernas (Eddens et al., 2018)."],
+          ["Esteira ou bike", "segunda (depois do agachamento): caminhada inclinada, que poupa o quadríceps. Quarta e sexta: bike."],
+          ["Comida sem dieta", "duas regras só: uma fonte de proteína em cada refeição (~1,6 g/kg/dia ≈ 130 g para você; acima disso não somou ganho, Morton et al., 2018) e 8–10 mil passos por dia."],
         ]} />
       </Secao>
 
@@ -2245,7 +2249,7 @@ function TelaGuia({ c, treinos }) {
 
       <Secao c={c} titulo="peso e cintura">
         <Itens c={c} itens={[
-          ["Alvo", "média semanal estável ou caindo até ~0,5% por semana, com as cargas subindo. Atletas que perderam peso devagar (~0,7%/sem) ganharam massa magra; os que perderam rápido, não (Garthe et al., 2011)."],
+          ["Alvo", "média semanal estável (ou caindo até ~0,5% por semana), cintura caindo e cargas subindo = recomposição funcionando. Quem perdeu peso devagar ganhou massa magra; quem perdeu rápido, não (Garthe et al., 2011)."],
           ["Cintura", "medir 1x por semana. Peso estável com cintura caindo e cargas subindo é exatamente o que você quer."],
         ]} />
       </Secao>
