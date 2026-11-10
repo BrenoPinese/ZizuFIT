@@ -37,12 +37,12 @@ const THEMES = {
   light: {
     bg: "#F4F4F1", surface: "#FFFFFF", surface2: "#EDEDE9", raised: "#FFFFFF", line: "#DCDCD6",
     ink: "#14161A", muted: "#6B7280", accent: "#1E5BC6", accentInk: "#FFFFFF",
-    pr: "#D42D2D", ok: "#2E9E5B", warn: "#C08A05", grid: "#E4E4DE",
+    pr: "#D42D2D", ok: "#2E9E5B", warn: "#C08A05", grid: "#E4E4DE", biset: "#7C4DDB",
   },
   dark: {
     bg: "#0E1013", surface: "#181B20", surface2: "#22262C", raised: "#1E242C", line: "#2C313A",
     ink: "#F2F3F5", muted: "#8A929E", accent: "#4C86F5", accentInk: "#0B0D10",
-    pr: "#F05454", ok: "#4ECB79", warn: "#E8B417", grid: "#262B33",
+    pr: "#F05454", ok: "#4ECB79", warn: "#E8B417", grid: "#262B33", biset: "#A47EF5",
   },
 };
 
@@ -80,16 +80,23 @@ async function gravarBruto(obj) {
 }
 
 /* --------------------------------------------------- programa do Breno
-   Programa v6 (09/11/2026) — recomposição: perder gordura mantendo o peso
+   Programa v6.1 (10/11/2026) — recomposição: perder gordura mantendo o peso
    e ganhando massa magra, sem dieta controlada (treino + aeróbico fazem o
    gasto). Breno tem bastante experiência (CrossFit competitivo); o desafio
-   é constância. Seg, qua e sex: corpo todo (~55 min) + 20–25 min de
-   aeróbico zona 2. Ter e qui: handebol 22h (ponta esquerda). Fim de semana:
-   aeróbico longo + reposição do treino que faltou. Bi-sets de grupos
-   opostos para caber no tempo (Iversen et al., 2021). Cargas de polia/
-   máquina em kg (5 kg por placa). "Por lado" = peso de UM lado. */
+   é constância. Ele quer treinar TODO dia, então:
+   - ESSENCIAIS (seg, qua, sex): A, B e C, corpo todo (~55 min) + cardio
+     zona 2. São eles que fazem o resultado; se faltar um, repõe no fim de
+     semana.
+   - EXTRAS (ter, qui, sáb, dom): D, E, F e G, curtos e de pouco cansaço
+     (braço, ombro, core, glúteo, mobilidade). Nada de perna em dia de
+     handebol (ter e qui, 22h). Se estiver cansado, o extra é o que cai.
+   Bi-sets (`biset`: mesmo número = par): faz um, vai direto para o outro
+   sem descanso e só então descansa — um descanso por rodada (Iversen et
+   al., 2021). O `descanso` dos dois exercícios do par é o da rodada.
+   Cargas de polia/máquina em kg (5 kg por placa). "Por lado" = peso de UM
+   lado. `obs` = só a dica necessária, curta; a explicação fica no Guia. */
 
-const PROGRAMA_VERSAO = 7; /* v7 = programa v6 + aquecimento próprio de cada treino */
+const PROGRAMA_VERSAO = 8; /* v8 = essenciais A–C + extras D–G, bi-sets com um descanso por rodada */
 
 const STATUS = {
   subir: { label: "pode subir", cor: "ok" },
@@ -100,47 +107,91 @@ const STATUS = {
 
 const TREINOS_PADRAO = [
   {
-    id: "A", nome: "Full Body A · Quadríceps + Empurrar", dia: "Segunda", duracao: "~55 min + 20–25 aeróbico", aquecimento: "v6A",
-    aviso: "Amanhã tem handebol: na perna, pare com 2 reps sobrando. Superior pode ir a 1 rep da falha. Bi-sets marcados na observação economizam ~15 min.",
+    id: "A", nome: "Full Body A · Quadríceps + Empurrar", dia: "Segunda", duracao: "~50 min + 20 cardio", aquecimento: "v6A",
+    aviso: "Amanhã tem handebol: na perna, pare com 2 reps sobrando. Superior pode ir a 1 rep da falha.",
     exercicios: [
-      { nome: "Salto no Step (contramovimento)", equip: "corpo", series: 3, reps: "3", descanso: 60, alvo: 0, status: "novo", obs: "Potência para a quadra, antes de cansar. Desce rápido, salta o mais alto possível em cima do step, aterrissa macio e desce andando. Qualidade máxima, sem pressa: é estímulo, não cansaço. Pliometria melhora salto e sprint em atletas de esporte coletivo (Slimani et al., 2016)." },
-      { nome: "Agachamento no Smith", equip: "anilha", series: 3, reps: "6-8", descanso: 180, alvo: 50, status: "manter", obs: "Por lado. Última: 50×6/6/6. Fique em 50 até fechar 3×8, aí +1 kg por lado. Coxa pelo menos paralela ao chão. Amanhã tem handebol: 2 reps sobrando." },
-      { nome: "Supino Reto com Barra", equip: "anilha", series: 3, reps: "6-8", descanso: 150, alvo: 30, status: "manter", obs: "Por lado. Última: 30×6/6. Bi-set com a puxada: supino, 60–90 s, puxada, 60–90 s, repete. Escápulas presas no banco, barra desce na linha do mamilo." },
-      { nome: "Puxada Frontal na Polia", equip: "placa", series: 3, reps: "8-10", descanso: 90, alvo: 50, status: "manter", obs: "Bi-set com o supino. Última: 45×10/8 e 50×8. Feche 3×10 com 50 antes de subir 1 placa. Puxe até o queixo, sem jogar o tronco para trás." },
-      { nome: "Cadeira Flexora (Sentado)", equip: "placa", series: 3, reps: "10-12", descanso: 90, alvo: 30, status: "novo", obs: "Sentado, o posterior trabalha alongado e cresceu mais que deitado (Maeo et al., 2021). Descida em 2–3 s. Comece com ~30 e anote." },
-      { nome: "Elevação Lateral com Halteres", equip: "halter", series: 3, reps: "12-15", descanso: 60, alvo: 10, status: "manter", obs: "Por halter. Bi-set com o tríceps francês. Última: 10×12/12/12. Fique em 10 até fechar 3×15 (o próximo halter, 12, é +20%)." },
-      { nome: "Tríceps Francês na Polia (corda)", equip: "placa", series: 3, reps: "10-12", descanso: 60, alvo: 15, status: "manter", obs: "Bi-set com a elevação lateral. Braços acima da cabeça: o tríceps cresceu mais nessa posição (Maeo et al., 2022). Última: 15×10/10/10." },
+      { nome: "Salto no Step (contramovimento)", equip: "corpo", series: 3, reps: "3", descanso: 60, alvo: 0, status: "novo", obs: "Salta o mais alto possível, aterrissa macio. Qualidade, não cansaço." },
+      { nome: "Agachamento no Smith", equip: "anilha", series: 3, reps: "6-8", descanso: 180, alvo: 50, status: "manter", obs: "Coxa pelo menos paralela. 2 reps sobrando." },
+      { nome: "Supino Reto com Barra", equip: "anilha", series: 3, reps: "6-8", descanso: 120, alvo: 30, status: "manter", biset: 1, obs: "Escápulas presas, barra na linha do mamilo." },
+      { nome: "Puxada Frontal na Polia", equip: "placa", series: 3, reps: "8-10", descanso: 120, alvo: 50, status: "manter", biset: 1, obs: "Puxe até o queixo, sem jogar o tronco." },
+      { nome: "Cadeira Flexora (Sentado)", equip: "placa", series: 3, reps: "10-12", descanso: 90, alvo: 30, status: "novo", obs: "Descida em 2–3 s." },
+      { nome: "Elevação Lateral com Halteres", equip: "halter", series: 3, reps: "12-15", descanso: 60, alvo: 10, status: "manter", biset: 2, obs: "Fique em 10 até fechar 3×15." },
+      { nome: "Tríceps Francês na Polia (corda)", equip: "placa", series: 3, reps: "10-12", descanso: 60, alvo: 15, status: "manter", biset: 2, obs: "Braços acima da cabeça." },
     ],
   },
   {
-    id: "B", nome: "Full Body B · Costas + Ombro + Unilateral", dia: "Quarta", duracao: "~55 min + 20–25 aeróbico", aquecimento: "v6B",
+    id: "B", nome: "Full Body B · Costas + Ombro + Unilateral", dia: "Quarta", duracao: "~50 min + 20 cardio", aquecimento: "v6B",
     aviso: "Amanhã tem handebol: no búlgaro, pare com 2 reps sobrando. Superior pode ir a 1 rep da falha.",
     exercicios: [
-      { nome: "Supino Inclinado com Halteres", equip: "halter", series: 3, reps: "8-10", descanso: 90, alvo: 20, status: "manter", obs: "Por halter. Bi-set com a remada baixa. Última: 12/10/8 com 20. Feche 3×10 antes de ir para 22." },
-      { nome: "Remada Baixa no Cabo", equip: "placa", series: 3, reps: "8-10", descanso: 90, alvo: 55, status: "subir", obs: "Bi-set com o supino inclinado. Fazia 3×12 com 50, então na faixa 8–10 vai 55 (+1 placa). Escápulas para trás antes de puxar." },
-      { nome: "Agachamento Búlgaro", equip: "halter", series: 3, reps: "8-10 cada perna", descanso: 90, alvo: 8, status: "novo", obs: "Por halter. Um halter em cada mão, perna de trás só apoia. Comece com ~8 kg. Unilateral: corrige diferença entre as pernas, útil para quem salta e muda de direção na ponta." },
-      { nome: "Desenvolvimento com Halteres", equip: "halter", series: 3, reps: "8-10", descanso: 90, alvo: 14, status: "manter", obs: "Por halter. Bi-set com o crucifixo invertido. Com 15 a última série caiu para 5; feche 3×10 com 14 primeiro." },
-      { nome: "Crucifixo Invertido com Halteres", equip: "halter", series: 3, reps: "12-15", descanso: 60, alvo: 6, status: "manter", obs: "Por halter. Bi-set com o desenvolvimento. Deltoide posterior e escápula: proteção do ombro de quem arremessa. Pode fazer no peck deck (posição de costas) se preferir." },
-      { nome: "Rosca Scott", equip: "placa", series: 3, reps: "8-12", descanso: 60, alvo: 25, status: "manter", obs: "Na máquina Scott. Bi-set com o tríceps testa. Última: 20×10, 25×10/10. Desça até quase estender o cotovelo." },
-      { nome: "Tríceps Testa na Polia", equip: "placa", series: 3, reps: "10-12", descanso: 60, alvo: 25, status: "manter", obs: "Bi-set com a rosca Scott. Última: 20×10, 25×10/12. Cotovelo parado." },
-      { nome: "Pallof Press na Polia", equip: "placa", series: 2, reps: "10-12", descanso: 45, alvo: 20, status: "manter", obs: "Por lado do corpo. Anti-rotação do tronco: base para arremesso e contato." },
+      { nome: "Supino Inclinado com Halteres", equip: "halter", series: 3, reps: "8-10", descanso: 90, alvo: 20, status: "manter", biset: 1, obs: "Feche 3×10 antes de ir para 22." },
+      { nome: "Remada Baixa no Cabo", equip: "placa", series: 3, reps: "8-10", descanso: 90, alvo: 55, status: "subir", biset: 1, obs: "Escápulas para trás antes de puxar." },
+      { nome: "Agachamento Búlgaro", equip: "halter", series: 3, reps: "8-10 cada perna", descanso: 90, alvo: 8, status: "novo", obs: "Perna de trás só apoia. 2 reps sobrando." },
+      { nome: "Desenvolvimento com Halteres", equip: "halter", series: 3, reps: "8-10", descanso: 90, alvo: 14, status: "manter", biset: 2, obs: "Feche 3×10 com 14 antes de subir." },
+      { nome: "Crucifixo Invertido com Halteres", equip: "halter", series: 3, reps: "12-15", descanso: 90, alvo: 6, status: "manter", biset: 2, obs: "Pode ser no peck deck, de costas." },
+      { nome: "Rosca Scott", equip: "placa", series: 3, reps: "8-12", descanso: 60, alvo: 25, status: "manter", biset: 3, obs: "Desça até quase estender o cotovelo." },
+      { nome: "Tríceps Testa na Polia", equip: "placa", series: 3, reps: "10-12", descanso: 60, alvo: 25, status: "manter", biset: 3, obs: "Cotovelo parado." },
+      { nome: "Pallof Press na Polia", equip: "placa", series: 2, reps: "10-12", descanso: 45, alvo: 20, status: "manter", obs: "Reps para cada lado do corpo." },
     ],
   },
   {
-    id: "C", nome: "Full Body C · Posterior + Puxar", dia: "Sexta", duracao: "~55 min + 20–25 aeróbico", aquecimento: "v6C",
-    aviso: "Dia mais longe do handebol (só terça): perna mais pesada da semana, pode ir a 1–2 reps da falha. Se faltar, faça no fim de semana.",
+    id: "C", nome: "Full Body C · Posterior + Puxar", dia: "Sexta", duracao: "~50 min + 25 cardio", aquecimento: "v6C",
+    aviso: "Perna mais pesada da semana: pode ir a 1–2 reps da falha. Se faltar, faça no sábado.",
     exercicios: [
-      { nome: "Leg Press 45°", equip: "anilha", series: 3, reps: "8-12", descanso: 150, alvo: 70, status: "manter", obs: "Por lado. Desça até ~90° de joelho sem tirar o quadril do banco; não trave o joelho no topo." },
-      { nome: "Stiff com Halteres", equip: "halter", series: 3, reps: "8-10", descanso: 120, alvo: 24, status: "manter", obs: "Por halter. Última: 24×8/8/8. Quadril para trás até o posterior alongar, costas neutras. Feche 3×10 e vá para 26." },
-      { nome: "Remada Curvada c/ Halteres", equip: "halter", series: 3, reps: "8-10", descanso: 90, alvo: 22, status: "manter", obs: "Por halter. Bi-set com o crossover. Para poupar a lombar depois do stiff, faça com o peito apoiado no banco inclinado (mesma carga serve). Última: 22×8/8/8." },
-      { nome: "Crossover na Polia", equip: "placa", series: 3, reps: "10-15", descanso: 90, alvo: 15, status: "manter", obs: "Bi-set com a remada. Última: 15×10/10/10. Fique em 15 até fechar 3×15." },
-      { nome: "Nórdico (excêntrico)", equip: "corpo", series: 3, reps: "4-6", descanso: 90, alvo: 0, status: "novo", obs: "Joelhos no colchonete, pés presos (parceiro ou rolo da mesa flexora). Desça o mais devagar possível, segure com as mãos no fim e volte empurrando o chão. Incluir o nórdico reduziu as lesões de posterior pela metade (van Dyk et al., 2019). Na 1ª semana faça 2×4: dá dor muscular." },
-      { nome: "Copenhagen (adutor)", equip: "corpo", series: 2, reps: "20-30 s cada lado", descanso: 45, alvo: 0, status: "novo", obs: "Prancha lateral com a perna de cima apoiada no banco (joelho apoiado = mais fácil; pé apoiado = mais difícil). Protege a virilha em quem corta e muda de direção (Harøy et al., 2019)." },
-      { nome: "Rosca Martelo", equip: "halter", series: 3, reps: "10-12", descanso: 60, alvo: 12, status: "manter", obs: "Por halter. Bi-set com a elevação lateral no cabo. Última: 12×10/10/10. Trabalha bíceps e antebraço juntos." },
-      { nome: "Elevação Lateral no Cabo", equip: "placa", series: 3, reps: "12-15", descanso: 60, alvo: 10, status: "manter", obs: "Bi-set com a rosca martelo. Cabo passando pela frente do corpo. Última: 10×12/12." },
+      { nome: "Leg Press 45°", equip: "anilha", series: 3, reps: "8-12", descanso: 150, alvo: 70, status: "manter", obs: "Joelho a ~90°, quadril sem sair do banco." },
+      { nome: "Stiff com Halteres", equip: "halter", series: 3, reps: "8-10", descanso: 120, alvo: 24, status: "manter", obs: "Costas neutras. Feche 3×10 e vá para 26." },
+      { nome: "Remada Curvada c/ Halteres", equip: "halter", series: 3, reps: "8-10", descanso: 90, alvo: 22, status: "manter", biset: 1, obs: "Peito apoiado no banco inclinado." },
+      { nome: "Crossover na Polia", equip: "placa", series: 3, reps: "10-15", descanso: 90, alvo: 15, status: "manter", biset: 1, obs: "Fique em 15 até fechar 3×15." },
+      { nome: "Nórdico (excêntrico)", equip: "corpo", series: 3, reps: "4-6", descanso: 90, alvo: 0, status: "novo", obs: "Desça o mais devagar possível. 1ª vez: 2×4." },
+      { nome: "Copenhagen (adutor)", equip: "corpo", series: 2, reps: "20-30 s cada lado", descanso: 45, alvo: 0, status: "novo", obs: "Joelho no banco = mais fácil; pé = mais difícil." },
+      { nome: "Rosca Martelo", equip: "halter", series: 3, reps: "10-12", descanso: 60, alvo: 12, status: "manter", biset: 2 },
+      { nome: "Elevação Lateral no Cabo", equip: "placa", series: 3, reps: "12-15", descanso: 60, alvo: 10, status: "manter", biset: 2, obs: "Cabo passando pela frente do corpo." },
+    ],
+  },
+  {
+    id: "D", extra: true, nome: "Extra D · Braço + Ombro", dia: "Terça", duracao: "~30 min", aquecimento: "superior",
+    aviso: "Handebol às 22h: nada de perna, pare com 2–3 reps sobrando. Cansado? Pule este.",
+    exercicios: [
+      { nome: "Rotação Externa na Polia", equip: "placa", series: 2, reps: "12-15", descanso: 45, alvo: 5, status: "novo", biset: 1, obs: "Reps para cada braço. Cotovelo colado, bem leve." },
+      { nome: "Face Pull na Polia (corda)", equip: "placa", series: 2, reps: "12-15", descanso: 45, alvo: 15, status: "novo", biset: 1, obs: "Corda até a testa, cotovelos altos." },
+      { nome: "Rosca Direta (Barra W)", equip: "anilha", series: 3, reps: "10-12", descanso: 60, alvo: 9, status: "manter", biset: 2 },
+      { nome: "Tríceps Corda na Polia", equip: "placa", series: 3, reps: "12-15", descanso: 60, alvo: 25, status: "manter", biset: 2, obs: "Abra a corda no fim." },
+      { nome: "Abdominal na Polia (ajoelhado)", equip: "placa", series: 3, reps: "12-15", descanso: 45, alvo: 30, status: "novo", obs: "Enrole o tronco, quadril parado." },
+    ],
+  },
+  {
+    id: "E", extra: true, nome: "Extra E · Peito + Ombro posterior + Core", dia: "Quinta", duracao: "~25 min", aquecimento: "superior",
+    aviso: "Handebol às 22h: nada de perna, pare com 2–3 reps sobrando. Cansado? Pule este.",
+    exercicios: [
+      { nome: "Voador (Peck Deck)", equip: "placa", series: 3, reps: "12-15", descanso: 60, alvo: 30, status: "novo", biset: 1 },
+      { nome: "Crucifixo Invertido no Peck Deck", equip: "placa", series: 3, reps: "15-20", descanso: 60, alvo: 20, status: "novo", biset: 1, obs: "De frente para o aparelho." },
+      { nome: "Prancha Lateral", equip: "corpo", series: 2, reps: "30-45 s cada lado", descanso: 45, alvo: 0, status: "novo" },
+      { nome: "Dead Bug", equip: "corpo", series: 2, reps: "8 cada lado", descanso: 45, alvo: 0, status: "novo", obs: "Lombar colada no chão." },
+    ],
+  },
+  {
+    id: "F", extra: true, nome: "Extra F · Glúteo + Panturrilha + Core", dia: "Sábado", duracao: "~30 min + 40 cardio", aquecimento: "extraF",
+    aviso: "Faltou A, B ou C na semana? Faça ele hoje no lugar deste. Ontem teve perna pesada: aqui é leve, 2–3 reps sobrando.",
+    exercicios: [
+      { nome: "Elevação Pélvica com Barra", equip: "anilha", series: 3, reps: "8-12", descanso: 90, alvo: 20, status: "novo", obs: "Pausa de 1 s no topo." },
+      { nome: "Panturrilha Sentado", equip: "placa", series: 3, reps: "12-15", descanso: 60, alvo: 30, status: "novo", biset: 1, obs: "Pausa de 1 s embaixo." },
+      { nome: "Abdominal Infra (elevação de pernas)", equip: "corpo", series: 3, reps: "10-15", descanso: 60, alvo: 0, status: "novo", biset: 1, obs: "Sobe o quadril, sem embalo." },
+    ],
+  },
+  {
+    id: "G", extra: true, nome: "Extra G · Mobilidade + Core (em casa)", dia: "Domingo", duracao: "~15 min + 45 caminhada",
+    aviso: "Dia de recuperar: nada pesado. Amanhã tem agachamento.",
+    exercicios: [
+      { nome: "Mobilidade 90/90 de Quadril", equip: "corpo", series: 2, reps: "8 cada lado", descanso: 30, alvo: 0, status: "novo", obs: "Gire os joelhos de um lado para o outro, tronco alto." },
+      { nome: "Livro Aberto (torácica)", equip: "corpo", series: 2, reps: "8 cada lado", descanso: 30, alvo: 0, status: "novo", obs: "Deitado de lado, abra o braço olhando a mão." },
+      { nome: "Agachamento Profundo Segurando", equip: "corpo", series: 2, reps: "30-45 s", descanso: 30, alvo: 0, status: "novo", obs: "Calcanhar no chão, peito aberto." },
+      { nome: "Abdominal Prancha", equip: "corpo", series: 3, reps: "30-60 s", descanso: 45, alvo: 0, status: "manter" },
     ],
   },
 ];
+
+/* par do bi-set (ou null) */
+const parceiroBiset = (treino, ex) =>
+  (ex?.biset ? treino.exercicios.find((e) => e.biset === ex.biset && e.nome !== ex.nome) : null) || null;
 
 /* Exercícios que mudaram de nome — o histórico é renomeado na migração */
 const RENOMEAR_EXERCICIOS = {
@@ -199,6 +250,7 @@ const MARCOS_IMPORTADOS = [
 const MARCOS_PROGRAMA = [
   { data: "2026-10-26", tipo: "ciclo", nota: "Programa v5 — hipertrofia e força. Seg e qua essenciais (corpo todo); ter, qui e sex complementam." },
   { data: "2026-11-09", tipo: "ciclo", nota: "Programa v6 — recomposição. Seg/qua/sex corpo todo (~55 min) + 20–25 min de aeróbico zona 2; fim de semana: aeróbico longo e reposição. Prevenção para a quadra: saltos, nórdico, Copenhagen." },
+  { data: "2026-11-10", tipo: "ciclo", nota: "Treino todo dia: A, B e C (seg/qua/sex) são os essenciais; D, E, F e G (ter/qui/sáb/dom) são extras curtos. Bi-sets com um descanso por rodada; cardio fixo do dia." },
   { data: "2026-11-28", tipo: "revisao", nota: "Férias da faculdade (sem handebol até o ano que vem) — exportar backup e pedir ao Claude o plano de férias." },
 ];
 const MARCOS_REMOVIDOS = ["2026-10-27", "2026-10-19", "2026-12-07", "2026-12-14"];
@@ -276,6 +328,14 @@ const AQUECIMENTOS = {
       { nome: "Aproximação", detalhe: "Leg press: 1×10 com ~50%, 1×5 com ~75% e 1×3 com ~90%. Stiff: 1×8 com halter leve." },
     ],
   },
+  extraF: {
+    titulo: "Aquecimento · glúteo + panturrilha", duracao: "~6 min",
+    itens: [
+      { nome: "Bike leve", detalhe: "4–5 min em ritmo de conversa" },
+      { nome: "Quadril", detalhe: "10 pontes de glúteo sem peso + 10 balanços de perna por lado" },
+      { nome: "Aproximação", detalhe: "Elevação pélvica: 1×10 só com a barra" },
+    ],
+  },
   full: {
     titulo: "Aquecimento · corpo todo", duracao: "~8 min",
     itens: [
@@ -306,26 +366,23 @@ const AQUECIMENTOS = {
   },
 };
 
-/* Cardio é OPCIONAL, sempre depois da musculação (Eddens et al., 2018).
-   Juntar cardio e musculação não atrapalhou ganho de massa nem de força
-   máxima, mas prejudicou a força explosiva (Schumann et al., 2022). Por
-   isso não entra extra em dia de handebol, que já é intenso e depende de
-   explosão. */
+/* Cardio: UMA opção fixa por dia, sempre depois da musculação (Eddens et
+   al., 2018), em zona 2. Ele só marca que fez. A esteira da faculdade não
+   inclina, então na segunda (depois do agachamento) vai o elíptico: sem
+   impacto e pega menos o quadríceps. Bike atrapalha menos o ganho de força
+   e massa que corrida (Wilson et al., 2012). Dia de handebol não tem
+   cardio: o jogo já é o intenso da semana e somar mais prejudica a força
+   explosiva (Schumann et al., 2022). */
+const TIPO_CARDIO = { bike: "Bike", esteira: "Esteira", eliptico: "Elíptico", caminhada: "Caminhada rápida" };
 const CARDIO_POR_DIA = {
-  1: { nivel: "liberado", txt: "Depois do treino: 20–25 min de caminhada inclinada na esteira (5–6 km/h, 8–12% de inclinação), zona 2. Poupa o quadríceps que já agachou. Amanhã tem handebol: nada de tiro." },
-  2: { nivel: "evitar", txt: "Dia de handebol (22h). O jogo já é o seu intervalado: somar mais só aumenta o cansaço." },
-  3: { nivel: "liberado", txt: "Depois do treino: 20–25 min de bike em zona 2. Bike atrapalha menos o ganho de força e massa que corrida (Wilson et al., 2012). Amanhã tem handebol: nada de tiro." },
-  4: { nivel: "evitar", txt: "Dia de handebol (22h). O jogo já é o seu intervalado: somar mais só aumenta o cansaço." },
-  5: { nivel: "liberado", txt: "Depois do treino: 20–25 min de bike em zona 2. Você tem o fim de semana para recuperar." },
-  6: { nivel: "liberado", txt: "Fim de semana: 40–45 min de zona 2 (esteira inclinada, bike ou caminhada na rua) — o aeróbico mais longo da semana. Faltou algum treino? Faça ele hoje e encurte o aeróbico para 20 min." },
-  0: { nivel: "liberado", txt: "Se o aeróbico longo não saiu no sábado, faça hoje: 40–45 min de zona 2. Senão, descanso e 8–10 mil passos." },
+  1: { tipo: "eliptico", min: 20 },
+  2: null,
+  3: { tipo: "bike", min: 20 },
+  4: null,
+  5: { tipo: "bike", min: 25 },
+  6: { tipo: "bike", min: 40 },
+  0: { tipo: "caminhada", min: 45 },
 };
-const NIVEL_CARDIO = {
-  liberado: { label: "liberado", cor: "ok" },
-  leve: { label: "só leve", cor: "warn" },
-  evitar: { label: "evitar", cor: "pr" },
-};
-const INTENSIDADE_CARDIO = "Zona 2 = dá para conversar em frases, mas não para cantar (~60–70% da FC máx).";
 
 const dowDe = (iso) => new Date(`${iso}T12:00:00`).getDay();
 const semanaEspecial = (iso = hoje()) => SEMANAS_ESPECIAIS.find((s) => iso >= s.inicio && iso <= s.fim) || null;
@@ -340,14 +397,8 @@ function textoHandebol(h = handebolDaSemana()) {
 }
 
 function cardioDoDia(iso = hoje()) {
-  const dow = dowDe(iso);
-  const esp = semanaEspecial(iso);
-  if (!esp || dow === 0 || dow === 6) return CARDIO_POR_DIA[dow];
-  const { dias, hora } = esp.handebol;
-  if (!dias.length) return { nivel: "liberado", txt: "Semana sem handebol: cardio liberado, 20–30 min leve de bike ou esteira." };
-  if (dias.includes(dow)) return { nivel: "evitar", txt: `Dia de handebol (${hora}). O jogo já é o seu cardio intenso; somar mais só aumenta o cansaço sem trazer ganho.` };
-  if (dias.includes(dow + 1)) return { nivel: "leve", txt: `Opcional e curto: 15–20 min de bike bem leve. Amanhã tem handebol (${hora}), então nada de tiro/intervalado.` };
-  return { nivel: "liberado", txt: "Bike ou esteira, 20–30 min leve." };
+  if (ehDiaDeHandebol(iso)) return null;
+  return CARDIO_POR_DIA[dowDe(iso)] || null;
 }
 
 /* treino de hoje: pela agenda da semana especial (com o plano B) ou pelo dia fixo do treino */
@@ -770,7 +821,7 @@ export default function AppTreino() {
 
   const registrarCardio = ({ tipo, minutos }) => {
     setCardios((a) => [...a, { id: uid(), data: hoje(), tipo, minutos }]);
-    mostrarAviso(`Cardio registrado: ${tipo === "bike" ? "bike" : "esteira"}, ${minutos} min.`);
+    mostrarAviso(`Cardio registrado: ${(TIPO_CARDIO[tipo] || tipo).toLowerCase()}, ${minutos} min.`);
   };
   const removerCardio = (id) => setCardios((a) => a.filter((x) => x.id !== id));
 
@@ -789,22 +840,36 @@ export default function AppTreino() {
       status: "⏳ Em andamento", sincronizado: false,
     };
     setSeries((a) => [...a, nova]);
-    iniciarDescanso(descansoEx || descanso);
 
     const treino = treinos.find((t) => t.id === sessao.treino);
     const ex = treino?.exercicios.find((e) => e.nome === exercicio);
-    if (treino && ex && nSerie >= ex.series) {
-      const pendentes = treino.exercicios.filter((e) => {
-        const feitas = seriesFeitas(e.nome) + (e.nome === exercicio ? 1 : 0);
-        return feitas < e.series;
-      });
-      if (pendentes.length) {
-        setSessao((s) => ({ ...s, exercicio: pendentes[0].nome }));
-        mostrarAviso(`${exercicio} concluído. Próximo: ${pendentes[0].nome}.`, 3500);
-      } else {
-        // fechou a última série: finaliza já contando a série recém-registrada
-        concluirSessao({ extra: nova });
-      }
+    if (!treino || !ex) { iniciarDescanso(descansoEx || descanso); return; }
+    const feitas = (nome) => seriesFeitas(nome) + (nome === exercicio ? 1 : 0);
+    const pendentes = treino.exercicios.filter((e) => feitas(e.nome) < e.series);
+    const par = parceiroBiset(treino, ex);
+
+    // bi-set: o par ainda não fez esta rodada → vai direto, sem descanso
+    if (par && feitas(par.nome) < par.series && feitas(par.nome) < nSerie) {
+      fecharDescanso();
+      setSessao((s) => ({ ...s, exercicio: par.nome }));
+      return;
+    }
+    // fechou a última série do treino: finaliza já contando a recém-registrada
+    if (!pendentes.length) { concluirSessao({ extra: nova }); return; }
+
+    iniciarDescanso(descansoEx || descanso);
+    if (par) {
+      // fim da rodada: volta para o 1º do par que ainda tem série
+      const bloco = treino.exercicios.filter((e) => e.biset === ex.biset);
+      const prox = bloco.find((e) => feitas(e.nome) < e.series);
+      if (prox) { if (prox.nome !== exercicio) setSessao((s) => ({ ...s, exercicio: prox.nome })); return; }
+      setSessao((s) => ({ ...s, exercicio: pendentes[0].nome }));
+      mostrarAviso(`Bi-set concluído. Próximo: ${pendentes[0].nome}.`, 3500);
+      return;
+    }
+    if (feitas(exercicio) >= ex.series) {
+      setSessao((s) => ({ ...s, exercicio: pendentes[0].nome }));
+      mostrarAviso(`${exercicio} concluído. Próximo: ${pendentes[0].nome}.`, 3500);
     }
   };
 
@@ -864,13 +929,16 @@ export default function AppTreino() {
     const dias = new Set([
       ...series.filter((s) => diaLocal(s.data) >= inicio).map((s) => diaLocal(s.data)),
       ...conclusoes.filter((x) => x.data >= inicio).map((x) => x.data),
+      ...cardios.filter((x) => x.data >= inicio).map((x) => x.data),
     ]);
     const treinosFeitos = new Set(
       conclusoes.filter((x) => x.data >= inicio && treinos.some((t) => t.id === x.treino)).map((x) => x.treino)
     );
     const handebol = conclusoes.filter((x) => x.data >= inicio && x.treino === "handebol").length;
-    return { feitos: dias.size, meta: 7, treinosFeitos, handebol };
-  }, [series, conclusoes, treinos]);
+    const essenciais = treinos.filter((t) => !t.extra);
+    const essenciaisFeitos = essenciais.filter((t) => treinosFeitos.has(t.id)).length;
+    return { feitos: dias.size, meta: 7, dias, inicio, treinosFeitos, handebol, essenciaisFeitos, essenciaisMeta: essenciais.length };
+  }, [series, conclusoes, cardios, treinos]);
 
   const exportarDados = () => {
     try {
@@ -1082,9 +1150,16 @@ function Selo({ c, status }) {
 /* ------------------------------------------------------------ tela 1 */
 
 function TelaTreinos({ c, treinos, ultimaVez, iniciar, sessao, continuar, progresso, toggleHandebol, conclusoes, descanso, setDescanso, cardios, registrarCardio, removerCardio, abrirCardio, onExportar, onImportar }) {
-  const pct = Math.min(100, (progresso.feitos / progresso.meta) * 100);
   const treinoDeHoje = treinoDoDia(treinos, progresso.treinosFeitos);
-  const feitoHoje = treinoDeHoje && progresso.treinosFeitos.has(treinoDeHoje.id);
+  /* fim de semana: essencial que faltou passa na frente do extra
+     (só um por dia; se já fez algum treino hoje, não sugere outro) */
+  const dowHoje = dowDe(hoje());
+  const treinouHoje = conclusoes.some((x) => x.data === hoje() && treinos.some((t) => t.id === x.treino));
+  const reposicao = (dowHoje === 6 || dowHoje === 0) && !treinouHoje
+    ? treinos.find((t) => !t.extra && !progresso.treinosFeitos.has(t.id)) || null
+    : null;
+  const essenciais = treinos.filter((t) => !t.extra);
+  const extras = treinos.filter((t) => t.extra);
   const handebol = handebolDaSemana();
   const diaDeHandebol = ehDiaDeHandebol();
   const especial = semanaEspecial();
@@ -1115,47 +1190,76 @@ function TelaTreinos({ c, treinos, ultimaVez, iniciar, sessao, continuar, progre
       <div className="p-4 rounded-2xl" style={{ background: c.surface, border: `1px solid ${c.line}` }}>
         <div className="flex items-baseline justify-between mb-2">
           <span className="text-xs uppercase tracking-widest" style={{ color: c.muted, fontFamily: MONO }}>esta semana</span>
-          <span className="text-sm font-semibold" style={{ fontFamily: MONO }}>{progresso.feitos}/{progresso.meta} dias</span>
+          <span className="text-sm font-semibold" style={{ fontFamily: MONO }}>
+            <span style={{ color: progresso.essenciaisFeitos >= progresso.essenciaisMeta ? c.ok : c.ink }}>
+              essenciais {progresso.essenciaisFeitos}/{progresso.essenciaisMeta}
+            </span>
+            <span style={{ color: c.muted }}> · {progresso.feitos}/{progresso.meta} dias</span>
+          </span>
         </div>
-        <div className="h-2 rounded-full overflow-hidden" style={{ background: c.surface2 }}>
-          <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: c.ok }} />
-        </div>
-        <div className="flex gap-1.5 mt-3">
-          {treinos.map((t) => {
-            const f = progresso.treinosFeitos.has(t.id);
+        <div className="flex gap-1.5">
+          {[1, 2, 3, 4, 5, 6, 0].map((dow, i) => {
+            const iso = addDias(progresso.inicio, i);
+            const t = treinos.find((x) => DOW[x.dia] === dow);
+            const f = progresso.dias.has(iso);
+            const ehHoje = iso === hoje();
+            const essencial = t && !t.extra;
+            const hb = handebolDaSemana(iso).dias.includes(dow);
             return (
-              <div key={t.id} className="flex-1 flex flex-col items-center gap-1">
-                <div className="w-full h-1.5 rounded-full" style={{ background: f ? c.ok : c.surface2 }} />
-                <span className="text-[9px]" style={{ color: f ? c.ok : c.muted, fontFamily: MONO }}>{t.id}</span>
+              <div key={dow} className="flex-1 flex flex-col items-center gap-1">
+                <div className="w-full rounded-full"
+                  style={{ height: essencial ? 8 : 5, marginTop: essencial ? 0 : 3, background: f ? c.ok : c.surface2,
+                    outline: ehHoje ? `1.5px solid ${c.accent}` : "none", outlineOffset: 1 }} />
+                <span className="text-[10px] leading-none" style={{ color: f ? c.ok : ehHoje ? c.ink : c.muted, fontFamily: MONO, fontWeight: essencial ? 700 : 400 }}>
+                  {NOME_DIA[dow].slice(0, 3)}
+                </span>
+                <span className="text-[9px] leading-none" style={{ color: c.muted, fontFamily: MONO }}>
+                  {t?.id || "–"}{hb ? <span style={{ color: c.warn }}>·H</span> : ""}
+                </span>
               </div>
             );
           })}
-          {[0, 1].map((i) => (
-            <div key={`h${i}`} className="flex-1 flex flex-col items-center gap-1">
-              <div className="w-full h-1.5 rounded-full" style={{ background: progresso.handebol > i ? c.warn : c.surface2 }} />
-              <span className="text-[9px]" style={{ color: progresso.handebol > i ? c.warn : c.muted, fontFamily: MONO }}>H</span>
-            </div>
-          ))}
         </div>
       </div>
 
-      {treinoDeHoje && (
-        <div className="px-4 py-3 rounded-2xl flex items-center gap-3"
-          style={{ background: c.surface, border: `1px solid ${feitoHoje ? c.ok : c.accent}` }}>
-          <CalendarDays size={18} style={{ color: feitoHoje ? c.ok : c.accent, flexShrink: 0 }} />
-          <div className="flex-1 text-sm min-w-0">
-            <b>Hoje: treino {treinoDeHoje.id}</b>
-            <span style={{ color: c.muted }}> — {treinoDeHoje.nome}</span>
-            {treinoDeHoje.duracao && <span style={{ color: c.muted, fontFamily: MONO }}> · {treinoDeHoje.duracao}</span>}
-            {diaDeHandebol && <span style={{ color: c.warn }}> · handebol {handebol.hora}</span>}
+      {(reposicao || treinoDeHoje) && (() => {
+        const t = reposicao || treinoDeHoje;
+        const feito = progresso.treinosFeitos.has(t.id);
+        return (
+          <div className="px-4 py-3 rounded-2xl" style={{ background: c.surface, border: `1px solid ${feito ? c.ok : c.accent}` }}>
+            <div className="flex items-center gap-3">
+              <CalendarDays size={18} style={{ color: feito ? c.ok : c.accent, flexShrink: 0 }} />
+              <div className="flex-1 text-sm min-w-0">
+                <b>{reposicao ? `Hoje: repor o ${t.id}` : `Hoje: treino ${t.id}`}</b>
+                <span className="ml-1.5 px-1.5 py-0.5 rounded text-[10px] uppercase tracking-wide align-middle"
+                  style={{ fontFamily: MONO, background: t.extra ? c.surface2 : c.accent, color: t.extra ? c.muted : c.accentInk }}>
+                  {t.extra ? "extra" : "essencial"}
+                </span>
+                <div style={{ color: c.muted }}>
+                  {t.nome.split("·").slice(1).join("·").trim() || t.nome}
+                  {t.duracao && <span style={{ fontFamily: MONO }}> · {t.duracao}</span>}
+                  {diaDeHandebol && <span style={{ color: c.warn }}> · handebol {handebol.hora}</span>}
+                </div>
+              </div>
+              {feito
+                ? <Check size={18} style={{ color: c.ok, flexShrink: 0 }} />
+                : <button type="button" onClick={() => iniciar(t)}
+                    className="px-3 py-1.5 rounded-lg text-sm font-semibold shrink-0"
+                    style={{ background: c.accent, color: c.accentInk }}>Iniciar</button>}
+            </div>
+            {reposicao && treinoDeHoje && (
+              <div className="text-xs mt-2" style={{ color: c.muted }}>
+                Faltou o {reposicao.id} na semana: ele vale mais que o extra {treinoDeHoje.id}.{" "}
+                <button type="button" onClick={() => iniciar(treinoDeHoje)} className="underline" style={{ color: c.ink }}>
+                  Fazer o {treinoDeHoje.id} mesmo assim
+                </button>
+              </div>
+            )}
           </div>
-          {feitoHoje
-            ? <Check size={18} style={{ color: c.ok, flexShrink: 0 }} />
-            : <button type="button" onClick={() => iniciar(treinoDeHoje)}
-                className="px-3 py-1.5 rounded-lg text-sm font-semibold shrink-0"
-                style={{ background: c.accent, color: c.accentInk }}>Iniciar</button>}
-        </div>
-      )}
+        );
+      })()}
+
+      <CardCardio c={c} cardios={cardios} registrar={registrarCardio} remover={removerCardio} />
       {!treinoDeHoje && diaDeHandebol && (
         <div className="px-4 py-3 rounded-2xl flex items-center gap-3 text-sm"
           style={{ background: c.surface, border: `1px solid ${c.warn}` }}>
@@ -1173,28 +1277,36 @@ function TelaTreinos({ c, treinos, ultimaVez, iniciar, sessao, continuar, progre
         </button>
       )}
 
-      {treinos.map((t) => {
-        const u = ultimaVez(t.id);
-        const feito = progresso.treinosFeitos.has(t.id);
-        return (
-          <button type="button" key={t.id} onClick={() => iniciar(t)}
-            className="w-full flex items-center gap-4 p-4 rounded-2xl text-left"
-            style={{ background: c.surface, border: `1px solid ${feito ? c.ok : c.line}` }}>
-            <div className="w-14 h-14 rounded-xl flex flex-col items-center justify-center shrink-0"
-              style={{ background: c.surface2 }}>
-              <span className="text-xl font-bold" style={{ fontFamily: MONO }}>{t.id}</span>
-              <span className="text-[9px] uppercase" style={{ color: c.muted }}>{diaDoTreino(t)}</span>
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="font-semibold truncate">{t.nome}</div>
-              <div className="text-sm" style={{ color: c.muted }}>
-                {t.exercicios.length} exercícios{t.duracao ? ` · ${t.duracao}` : ""} · {u ? diasAtras(u) : "sem registro"}
-              </div>
-            </div>
-            {feito ? <Check size={20} style={{ color: c.ok }} /> : <Play size={20} style={{ color: c.accent }} />}
-          </button>
-        );
-      })}
+      {[["essenciais", "seg · qua · sex — o que faz o resultado", essenciais], ["extras", "ter · qui · sáb · dom — curtos, se der", extras]].map(([titulo, sub, lista]) => (
+        <div key={titulo} className="space-y-2">
+          <div className="flex items-baseline justify-between pt-2 px-1">
+            <span className="text-xs uppercase tracking-widest font-semibold" style={{ color: titulo === "essenciais" ? c.ink : c.muted, fontFamily: MONO }}>{titulo}</span>
+            <span className="text-[11px]" style={{ color: c.muted }}>{sub}</span>
+          </div>
+          {lista.map((t) => {
+            const u = ultimaVez(t.id);
+            const feito = progresso.treinosFeitos.has(t.id);
+            return (
+              <button type="button" key={t.id} onClick={() => iniciar(t)}
+                className="w-full flex items-center gap-4 rounded-2xl text-left"
+                style={{ background: c.surface, border: `1px ${t.extra && !feito ? "dashed" : "solid"} ${feito ? c.ok : c.line}`, padding: t.extra ? "12px 16px" : 16 }}>
+                <div className={`${t.extra ? "w-11 h-11" : "w-14 h-14"} rounded-xl flex flex-col items-center justify-center shrink-0`}
+                  style={{ background: c.surface2 }}>
+                  <span className={t.extra ? "text-base font-bold" : "text-xl font-bold"} style={{ fontFamily: MONO, color: t.extra ? c.muted : c.ink }}>{t.id}</span>
+                  <span className="text-[9px] uppercase" style={{ color: c.muted }}>{diaDoTreino(t)}</span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className={t.extra ? "text-sm font-semibold truncate" : "font-semibold truncate"}>{t.nome}</div>
+                  <div className="text-xs" style={{ color: c.muted }}>
+                    {t.exercicios.length} exercícios{t.duracao ? ` · ${t.duracao}` : ""} · {u ? diasAtras(u) : "sem registro"}
+                  </div>
+                </div>
+                {feito ? <Check size={20} style={{ color: c.ok }} /> : <Play size={t.extra ? 16 : 20} style={{ color: t.extra ? c.muted : c.accent }} />}
+              </button>
+            );
+          })}
+        </div>
+      ))}
 
       <button type="button" onClick={toggleHandebol}
         className="w-full flex items-center gap-3 p-4 rounded-2xl text-left"
@@ -1209,8 +1321,6 @@ function TelaTreinos({ c, treinos, ultimaVez, iniciar, sessao, continuar, progre
         {handebolHoje ? <Check size={20} style={{ color: c.warn }} /> : <Plus size={20} style={{ color: c.muted }} />}
       </button>
 
-      <CardCardio key={abrirCardio ? "aberto" : "fechado"} c={c} cardios={cardios}
-        registrar={registrarCardio} remover={removerCardio} abertoInicial={abrirCardio} />
 
       <div className="rounded-2xl overflow-hidden" style={{ background: c.surface, border: `1px solid ${c.line}` }}>
         <button type="button" onClick={() => setAjustes((a) => !a)}
@@ -1283,6 +1393,21 @@ function TelaSessao({ c, sessao, setSessao, treinos, series, registrar, encerrar
   const tudoFeito = !treino.exercicios.some((e) => feitasNoDia(e.nome) < e.series);
   const pctSessao = Math.round((seriesFeitasHoje / totalSeriesPlano) * 100);
 
+  /* bi-set: par, posição (1/2) e o que vem depois desta série */
+  const par = parceiroBiset(treino, ex);
+  const posBiset = par ? (treino.exercicios.indexOf(ex) < treino.exercicios.indexOf(par) ? 1 : 2) : 0;
+  const vaiProPar = par && feitasNoDia(par.nome) < par.series && feitasNoDia(par.nome) <= feitasHoje.length;
+  const depoisTxt = !par ? null
+    : vaiProPar ? `depois: ${nomeCurto(par.nome)}, sem descanso`
+    : `depois: descanso ${mmss(ex.descanso)}`;
+  /* blocos para os chips: bi-set junto num só bloco */
+  const blocos = [];
+  treino.exercicios.forEach((e) => {
+    const ultimo = blocos[blocos.length - 1];
+    if (e.biset && ultimo && ultimo[0].biset === e.biset) ultimo.push(e);
+    else blocos.push([e]);
+  });
+
   const anterior = useMemo(() => {
     const antigas = series.filter((s) => s.exercicio === ex.nome && diaLocal(s.data) !== hoje());
     if (!antigas.length) return null;
@@ -1303,8 +1428,9 @@ function TelaSessao({ c, sessao, setSessao, treinos, series, registrar, encerrar
 
   useEffect(() => {
     const retorno = anterior && naSemanaDeRetorno() && anterior.data < RETORNO.inicio;
-    setCarga(String(retorno ? cargaRetorno(anterior.carga, ex) : (anterior ? anterior.carga : ex.alvo)));
-    setReps(String(parseInt(ex.reps, 10) || 10));
+    const ultHoje = feitasHoje[feitasHoje.length - 1]; /* voltando ao exercício (ex.: bi-set): repete a série de agora há pouco */
+    setCarga(String(ultHoje ? ultHoje.carga : retorno ? cargaRetorno(anterior.carga, ex) : (anterior ? anterior.carga : ex.alvo)));
+    setReps(String(ultHoje ? ultHoje.reps : (parseInt(ex.reps, 10) || 10)));
     setErro("");
     setVideoAberto(false);
     setEditId(null);
@@ -1398,38 +1524,57 @@ function TelaSessao({ c, sessao, setSessao, treinos, series, registrar, encerrar
         </div>
       )}
 
-      {/* chips de exercício */}
-      <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
-        {treino.exercicios.map((e) => {
-          const ativo = e.nome === ex.nome;
-          const n = feitasNoDia(e.nome);
-          const completo = n >= e.series;
+      {/* chips de exercício — bi-set fica junto num bloco só */}
+      <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 items-stretch">
+        {blocos.map((bloco) => {
+          const chips = bloco.map((e, j) => {
+            const ativo = e.nome === ex.nome;
+            const n = feitasNoDia(e.nome);
+            const completo = n >= e.series;
+            return (
+              <React.Fragment key={e.nome}>
+                {j > 0 && <span className="self-center text-sm font-bold" style={{ color: c.biset }}>⇄</span>}
+                <button type="button" onClick={() => setSessao({ ...sessao, exercicio: e.nome })}
+                  className="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-full text-sm whitespace-nowrap"
+                  style={{
+                    background: ativo ? c.raised : c.surface,
+                    color: ativo ? c.ink : (completo ? c.ok : c.ink),
+                    border: `1px solid ${ativo ? (e.biset ? c.biset : c.accent) : (completo ? c.ok : c.line)}`,
+                    fontWeight: ativo ? 600 : 400,
+                  }}>
+                  {completo && !ativo && <Check size={13} style={{ color: c.ok }} />}
+                  {ativo && <span className="w-1.5 h-1.5 rounded-full" style={{ background: e.biset ? c.biset : c.accent }} />}
+                  {nomeCurto(e.nome)}
+                  <span className="px-1.5 py-0.5 rounded-full text-[11px]"
+                    style={{ background: c.surface2, color: completo ? c.ok : c.muted, fontFamily: MONO }}>
+                    {n}/{e.series}
+                  </span>
+                </button>
+              </React.Fragment>
+            );
+          });
+          if (bloco.length < 2) return chips;
           return (
-            <button type="button" key={e.nome} onClick={() => setSessao({ ...sessao, exercicio: e.nome })}
-              className="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-full text-sm whitespace-nowrap"
-              style={{
-                background: ativo ? c.raised : c.surface,
-                color: ativo ? c.ink : (completo ? c.ok : c.ink),
-                border: `1px solid ${ativo ? c.accent : (completo ? c.ok : c.line)}`,
-                fontWeight: ativo ? 600 : 400,
-              }}>
-              {completo && !ativo && <Check size={13} style={{ color: c.ok }} />}
-              {ativo && <span className="w-1.5 h-1.5 rounded-full" style={{ background: c.accent }} />}
-              {nomeCurto(e.nome)}
-              <span className="px-1.5 py-0.5 rounded-full text-[11px]"
-                style={{ background: c.surface2, color: completo ? c.ok : c.muted, fontFamily: MONO }}>
-                {n}/{e.series}
-              </span>
-            </button>
+            <div key={`bs${bloco[0].biset}`} className="shrink-0 flex items-center gap-1.5 pl-2 pr-1 py-1 rounded-full relative"
+              style={{ border: `1.5px solid ${c.biset}`, background: `${c.biset}14` }}>
+              <span className="text-[9px] font-bold uppercase tracking-wider" style={{ color: c.biset, fontFamily: MONO, writingMode: "vertical-rl", transform: "rotate(180deg)" }}>bi-set</span>
+              {chips}
+            </div>
           );
         })}
       </div>
 
       {/* card herói */}
-      <div className="p-4 rounded-2xl" style={{ background: c.raised, border: `1px solid ${c.accent}`, boxShadow: "0 14px 34px -16px rgba(0,0,0,.5)" }}>
-        <div className="text-[10px] uppercase tracking-widest mb-1" style={{ color: c.muted, fontFamily: MONO }}>
-          {bar ? `barra olímpica · ${bar} kg` : bar === 0 ? "carga por lado · máquina" : "exercício atual"}
-        </div>
+      <div className="rounded-2xl overflow-hidden" style={{ background: c.raised, border: `${par ? 2 : 1}px solid ${par ? c.biset : c.accent}`, boxShadow: "0 14px 34px -16px rgba(0,0,0,.5)" }}>
+        {par && (
+          <div className="flex items-center gap-2 px-4 py-2 text-xs font-semibold" style={{ background: c.biset, color: "#fff", fontFamily: MONO }}>
+            <span className="uppercase tracking-widest">bi-set {posBiset}/2</span>
+            <span className="opacity-90 truncate">
+              {posBiset === 1 ? <><u>{nomeCurto(ex.nome)}</u> ⇄ {nomeCurto(par.nome)}</> : <>{nomeCurto(par.nome)} ⇄ <u>{nomeCurto(ex.nome)}</u></>}
+            </span>
+          </div>
+        )}
+        <div className="p-4">
         <div className="flex items-start justify-between gap-2">
           <h2 className="text-xl font-bold leading-tight">{ex.nome}</h2>
           <Selo c={c} status={ex.status} />
@@ -1437,26 +1582,30 @@ function TelaSessao({ c, sessao, setSessao, treinos, series, registrar, encerrar
 
         {/* número herói */}
         <div className="flex items-stretch gap-3 mt-4 mb-1">
-          <span className="w-1.5 rounded-full shrink-0" style={{ background: PLATE_COLORS[bar] || c.accent, minHeight: 52 }} />
-          <div className="flex items-baseline gap-3 flex-wrap min-w-0">
-            <span style={{ fontFamily: MONO, fontWeight: 600, fontSize: 54, lineHeight: .9, letterSpacing: "-.03em" }}>
-              {String(carga || 0).replace(".", ",")}
-              <span style={{ fontSize: 18, fontWeight: 500, color: c.muted, marginLeft: 5 }}>kg</span>
-            </span>
-            <span style={{ fontFamily: MONO, fontSize: 23, fontWeight: 500, color: c.muted }}>× {reps || 0}</span>
+          <span className="w-1.5 rounded-full shrink-0" style={{ background: PLATE_COLORS[bar] || (par ? c.biset : c.accent), minHeight: 52 }} />
+          <div className="min-w-0">
+            <div className="flex items-baseline gap-3 flex-wrap">
+              <span style={{ fontFamily: MONO, fontWeight: 600, fontSize: 54, lineHeight: .9, letterSpacing: "-.03em" }}>
+                {String(carga || 0).replace(".", ",")}
+                <span style={{ fontSize: 18, fontWeight: 500, color: c.muted, marginLeft: 5 }}>kg</span>
+              </span>
+              <span style={{ fontFamily: MONO, fontSize: 23, fontWeight: 500, color: c.muted }}>× {reps || 0}</span>
+            </div>
+            {tipo === "placa" && cargaNum > 0 && (
+              <div className="mt-1.5" style={{ fontFamily: MONO, fontSize: 14, color: c.muted }}>
+                ({fmtKg(cargaNum / PLACA_KG)} {cargaNum / PLACA_KG === 1 ? "placa" : "placas"})
+              </div>
+            )}
+            {tipo === "halter" && cargaNum > 0 && (
+              <div className="mt-1.5" style={{ fontFamily: MONO, fontSize: 12, color: c.muted }}>
+                (por halter){!HALTERES.includes(cargaNum) ? " · esse halter não existe" : ""}
+              </div>
+            )}
+            {tipo === "corpo" && !cargaNum && (
+              <div className="mt-1.5" style={{ fontFamily: MONO, fontSize: 12, color: c.muted }}>(peso do corpo)</div>
+            )}
           </div>
         </div>
-
-        {tipo === "placa" && cargaNum > 0 && (
-          <div className="mt-2" style={{ fontFamily: MONO, fontSize: 11, color: c.muted }}>
-            {placasDe(cargaNum)} placas{cargaNum % PLACA_KG ? ` (${fmtKg(cargaNum)} kg não fecha placa inteira)` : ""} · registrado como {PLACA_KG} kg por placa
-          </div>
-        )}
-        {tipo === "halter" && cargaNum > 0 && (
-          <div className="mt-2" style={{ fontFamily: MONO, fontSize: 11, color: c.muted }}>
-            por halter{!HALTERES.includes(cargaNum) ? " · esse halter não existe na academia" : ""}
-          </div>
-        )}
 
         {anilhas && (
           <div className="flex flex-wrap items-center gap-1.5 mt-2" style={{ fontFamily: MONO, fontSize: 11, color: c.muted }}>
@@ -1477,13 +1626,13 @@ function TelaSessao({ c, sessao, setSessao, treinos, series, registrar, encerrar
           </div>
         )}
 
-        <div className="flex gap-4 mt-3 text-sm" style={{ fontFamily: MONO, color: c.muted }}>
+        <div className="flex flex-wrap gap-x-4 gap-y-1 mt-3 text-sm" style={{ fontFamily: MONO, color: c.muted }}>
           <span><b style={{ color: c.ink }}>{ex.series}</b> séries</span>
           <span><b style={{ color: c.ink }}>{ex.reps}</b> reps</span>
-          <span><b style={{ color: c.ink }}>{mmss(ex.descanso)}</b> descanso</span>
+          <span><b style={{ color: c.ink }}>{mmss(ex.descanso)}</b> {par ? "descanso após o par" : "descanso"}</span>
         </div>
 
-        {ex.obs && <p className="text-sm mt-3" style={{ color: c.muted }}>{ex.obs}</p>}
+        {ex.obs && <p className="text-xs mt-2" style={{ color: c.muted }}>{ex.obs}</p>}
 
         <button type="button" onClick={() => setVideoAberto(true)}
           className="w-full mt-3 py-2.5 rounded-xl font-medium flex items-center justify-center gap-2 text-sm"
@@ -1494,7 +1643,7 @@ function TelaSessao({ c, sessao, setSessao, treinos, series, registrar, encerrar
         <div className="grid grid-cols-2 gap-3 mt-4">
           <Stepper c={c} rotulo="Repetições" valor={reps} setValor={setReps} passo={1} min={0} />
           <Stepper c={c}
-            rotulo={tipo === "anilha" ? "Carga (kg/lado)" : tipo === "halter" ? "Carga (kg/halter)" : tipo === "placa" ? `Carga (kg · ${PLACA_KG}/placa)` : "Carga (kg)"}
+            rotulo={tipo === "anilha" ? "Carga (kg/lado)" : tipo === "halter" ? "Carga (kg/halter)" : "Carga (kg)"}
             valor={carga} setValor={setCarga} passo={1} min={0}
             ajusta={(v, dir) => proximaCarga(ex, v, dir)} />
         </div>
@@ -1526,8 +1675,12 @@ function TelaSessao({ c, sessao, setSessao, treinos, series, registrar, encerrar
         {!completoEx ? (
           <button type="button" onClick={enviar}
             className="w-full mt-3 py-4 rounded-2xl font-semibold text-lg flex items-center justify-center gap-2"
-            style={{ background: c.accent, color: c.accentInk }}>
-            <Check size={22} /> Registrar série {feitasHoje.length + 1} de {ex.series}
+            style={{ background: par ? c.biset : c.accent, color: par ? "#fff" : c.accentInk }}>
+            <Check size={22} />
+            <span className="flex flex-col items-start leading-tight">
+              <span>Registrar série {feitasHoje.length + 1} de {ex.series}</span>
+              {depoisTxt && <span className="text-xs font-medium opacity-80">{depoisTxt}</span>}
+            </span>
           </button>
         ) : (
           <>
@@ -1545,6 +1698,7 @@ function TelaSessao({ c, sessao, setSessao, treinos, series, registrar, encerrar
             </button>
           </>
         )}
+        </div>
       </div>
 
       {feitasHoje.length > 0 && (
@@ -1635,7 +1789,6 @@ function ModalVideo({ c, exercicio, fechar }) {
 function ModalFinalizado({ c, info, fechar, cardio }) {
   const { treino, auto, parcial, volume, duracao, series: nSeries } = info || {};
   const rec = cardioDoDia();
-  const nivel = NIVEL_CARDIO[rec.nivel];
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center px-6" style={{ background: "rgba(0,0,0,0.65)" }} onClick={fechar}>
       <div className="w-full max-w-sm rounded-3xl p-6 text-center" style={{ background: c.surface }} onClick={(e) => e.stopPropagation()}>
@@ -1660,16 +1813,11 @@ function ModalFinalizado({ c, info, fechar, cardio }) {
 
         {auto && <p className="mt-2 text-sm" style={{ color: c.muted }}>Finalizado automaticamente — a sessão tinha ficado aberta de outro dia.</p>}
 
-        {!auto && (
-          <div className="mt-4 px-3 py-2.5 rounded-xl text-left text-sm" style={{ background: c.surface2 }}>
-            <span className="font-semibold" style={{ color: c[nivel.cor] }}>Aeróbico · {nivel.label}</span>
-            <span style={{ color: c.muted }}> — {rec.txt}</span>
-          </div>
-        )}
-
-        {!auto && rec.nivel !== "evitar" && (
+        {!auto && rec && (
           <button type="button" onClick={cardio} className="w-full mt-4 py-3 rounded-2xl font-semibold flex items-center justify-center gap-2"
-            style={{ background: c.surface2, color: c.ink }}><Bike size={18} /> Registrar cardio</button>
+            style={{ background: c.surface2, color: c.ink }}>
+            <Bike size={18} /> Agora: {(TIPO_CARDIO[rec.tipo] || rec.tipo).toLowerCase()} {rec.min} min
+          </button>
         )}
         <button type="button" onClick={fechar} className="w-full mt-2 py-3 rounded-2xl font-semibold"
           style={{ background: c.accent, color: c.accentInk }}>Ver histórico</button>
@@ -1944,60 +2092,30 @@ function CardAquecimento({ c, aq, feitos, toggle, iniciouSeries }) {
 
 /* ------------------------------------------------------------- cardio */
 
-function CardCardio({ c, cardios, registrar, remover, abertoInicial = false }) {
+function CardCardio({ c, cardios, registrar, remover }) {
   const rec = cardioDoDia();
-  const nivel = NIVEL_CARDIO[rec.nivel];
-  const [aberto, setAberto] = useState(abertoInicial && rec.nivel !== "evitar");
-  const [tipo, setTipo] = useState("bike");
-  const [min, setMin] = useState(rec.nivel === "leve" ? "15" : "20");
+  if (!rec) return null;
   const deHoje = cardios.filter((x) => x.data === hoje());
-  const minutosHoje = deHoje.reduce((n, x) => n + (Number(x.minutos) || 0), 0);
-
+  const feito = deHoje.length > 0;
+  const nome = TIPO_CARDIO[rec.tipo] || rec.tipo;
   return (
-    <div className="rounded-2xl overflow-hidden" style={{ background: c.surface, border: `1px solid ${deHoje.length ? c.ok : c.line}` }}>
-      <button type="button" onClick={() => setAberto((a) => !a)} className="w-full flex items-center gap-3 p-4 text-left">
-        <div className="w-14 h-14 rounded-xl flex items-center justify-center shrink-0" style={{ background: c.surface2 }}>
-          <Bike size={24} style={{ color: c[nivel.cor] }} />
+    <div className="flex items-center gap-3 p-4 rounded-2xl" style={{ background: c.surface, border: `1px solid ${feito ? c.ok : c.line}` }}>
+      <div className="w-14 h-14 rounded-xl flex items-center justify-center shrink-0" style={{ background: c.surface2 }}>
+        <Bike size={24} style={{ color: feito ? c.ok : c.ink }} />
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="font-semibold">{nome} · <span style={{ fontFamily: MONO }}>{rec.min} min</span></div>
+        <div className="text-sm" style={{ color: feito ? c.ok : c.muted }}>
+          {feito ? "feito hoje" : "zona 2 · depois da musculação"}
         </div>
-        <div className="flex-1 min-w-0">
-          <div className="font-semibold">Aeróbico <span className="text-sm font-normal" style={{ color: c.muted }}>· zona 2</span></div>
-          <div className="text-sm" style={{ color: c[nivel.cor] }}>
-            hoje: {nivel.label}
-            {minutosHoje > 0 && <span style={{ color: c.ok }}> · {minutosHoje} min feitos</span>}
-          </div>
-        </div>
-        <ChevronDown size={18} style={{ color: c.muted, transform: aberto ? "rotate(180deg)" : "none", transition: "transform .15s" }} />
+      </div>
+      <button type="button"
+        onClick={() => (feito ? deHoje.forEach((x) => remover(x.id)) : registrar({ tipo: rec.tipo, minutos: rec.min }))}
+        className="px-4 py-2.5 rounded-xl text-sm font-semibold shrink-0 flex items-center gap-1.5"
+        style={{ background: feito ? c.ok : c.accent, color: feito ? "#fff" : c.accentInk }}
+        aria-label={feito ? "Desfazer cardio" : "Marcar cardio como feito"}>
+        {feito ? <><Check size={16} /> Feito</> : "Fiz"}
       </button>
-
-      {aberto && (
-        <div className="px-4 pb-4 space-y-3" style={{ borderTop: `1px solid ${c.line}` }}>
-          <p className="text-sm pt-3">{rec.txt}</p>
-          <p className="text-xs" style={{ color: c.muted }}>{INTENSIDADE_CARDIO} Sempre depois da musculação, nunca antes.</p>
-          <div className="flex gap-2">
-            {[["bike", "Bike"], ["esteira", "Esteira"]].map(([id, label]) => (
-              <button type="button" key={id} onClick={() => setTipo(id)}
-                className="flex-1 py-2.5 rounded-xl text-sm font-semibold"
-                style={{ background: tipo === id ? c.accent : c.surface2, color: tipo === id ? c.accentInk : c.ink }}>
-                {label}
-              </button>
-            ))}
-          </div>
-          <Stepper c={c} rotulo="Minutos" valor={min} setValor={setMin} passo={5} min={0} />
-          <button type="button"
-            onClick={() => { const m = Number(min); if (m > 0) registrar({ tipo, minutos: m }); }}
-            className="w-full py-3 rounded-xl font-semibold flex items-center justify-center gap-2"
-            style={{ background: c.ok, color: "#fff" }}>
-            <Check size={18} /> Registrar cardio
-          </button>
-          {deHoje.map((x) => (
-            <div key={x.id} className="flex items-center gap-3 px-3 py-2 rounded-xl text-sm" style={{ background: c.surface2, fontFamily: MONO }}>
-              <span>{x.tipo === "bike" ? "bike" : "esteira"}</span>
-              <span className="ml-auto font-semibold">{x.minutos} min</span>
-              <button type="button" onClick={() => remover(x.id)} aria-label="Remover cardio"><Trash2 size={14} style={{ color: c.muted }} /></button>
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   );
 }
@@ -2208,28 +2326,31 @@ function Itens({ c, itens }) {
 }
 
 function TelaGuia({ c, treinos }) {
-  const dias = [
-    ...treinos.map((t) => ({ dia: t.dia, id: t.id, nome: t.nome, duracao: t.duracao, dow: DOW[t.dia] })),
-    { dia: "Ter/Qui", id: "H", nome: "Handebol · sem musculação", duracao: "", dow: 2 },
-    { dia: "Sáb/Dom", id: "Z2", nome: "Aeróbico longo · reposição do treino que faltou", duracao: "40–45 min", dow: 6 },
-  ].sort((a, b) => ((a.dow || 7) - (b.dow || 7)));
   return (
     <div className="px-4 space-y-4">
       <Secao c={c} titulo="sua semana">
         <div className="space-y-2">
-          {dias.map((d) => {
-            const rec = CARDIO_POR_DIA[d.dow];
-            const nivel = NIVEL_CARDIO[rec.nivel];
-            const handebol = HANDEBOL_PADRAO.dias.includes(d.dow);
+          {[1, 2, 3, 4, 5, 6, 0].map((dow) => {
+            const t = treinos.find((x) => DOW[x.dia] === dow);
+            const rec = CARDIO_POR_DIA[dow];
+            const handebol = HANDEBOL_PADRAO.dias.includes(dow);
             return (
-              <div key={d.dia} className="flex items-start gap-3 px-3 py-2.5 rounded-xl" style={{ background: c.surface2 }}>
-                <span className="w-9 text-center font-bold shrink-0" style={{ fontFamily: MONO }}>{d.id}</span>
+              <div key={dow} className="flex items-start gap-3 px-3 py-2.5 rounded-xl"
+                style={{ background: c.surface2, opacity: t?.extra ? 0.9 : 1 }}>
+                <span className="w-7 text-center font-bold shrink-0" style={{ fontFamily: MONO, color: t?.extra ? c.muted : c.ink }}>{t?.id || "–"}</span>
                 <div className="flex-1 min-w-0 text-sm">
-                  <div><b>{d.dia}</b> <span style={{ color: c.muted }}>· {d.nome}</span></div>
+                  <div>
+                    <b>{NOME_DIA[dow]}</b>{" "}
+                    <span className="px-1.5 py-0.5 rounded text-[9px] uppercase tracking-wide align-middle"
+                      style={{ fontFamily: MONO, background: t && !t.extra ? c.accent : c.surface, color: t && !t.extra ? c.accentInk : c.muted }}>
+                      {t && !t.extra ? "essencial" : "extra"}
+                    </span>
+                  </div>
+                  {t && <div style={{ color: c.muted }}>{t.nome.split("·").slice(1).join("·").trim()}</div>}
                   <div className="text-xs mt-0.5" style={{ fontFamily: MONO, color: c.muted }}>
-                    {d.duracao}{d.duracao ? " · " : ""}
-                    {handebol && <span style={{ color: c.warn }}>handebol {HANDEBOL_PADRAO.hora} · </span>}
-                    cardio <span style={{ color: c[nivel.cor] }}>{nivel.label}</span>
+                    {t?.duracao}
+                    {handebol && <span style={{ color: c.warn }}> · handebol {HANDEBOL_PADRAO.hora}</span>}
+                    {rec && <span> · {(TIPO_CARDIO[rec.tipo] || rec.tipo).toLowerCase()} {rec.min} min</span>}
                   </div>
                 </div>
               </div>
@@ -2237,8 +2358,9 @@ function TelaGuia({ c, treinos }) {
           })}
         </div>
         <p className="text-xs mt-3" style={{ color: c.muted }}>
-          Três treinos de corpo todo: cada músculo leva ~9 séries por semana, divididas em 2–3 dias. Se a sexta cair, faça o C no fim de semana.
-          Se só seg e qua saírem, ainda dá ~6 séries por músculo, que mantém e ainda faz progredir.
+          A, B e C são o que faz o resultado: ~9 séries por músculo por semana. Faltou um? Faça no sábado no lugar do extra F.
+          D, E, F e G são extras curtos e leves (braço, ombro, core, glúteo, mobilidade): somam gasto e prevenção sem atrapalhar a quadra.
+          Cansado ou com dor? O extra é o que cai, nunca o essencial.
         </p>
       </Secao>
 
@@ -2247,8 +2369,8 @@ function TelaGuia({ c, treinos }) {
           ["Quanto puxar", "termine as séries com 1–3 reps sobrando. Chegar perto da falha faz crescer; ir até a falha em toda série não traz ganho extra e cansa mais (Refalo et al., 2023)."],
           ["Quando subir a carga", "progressão dupla: fechou TODAS as séries no teto da faixa (ex.: 3×10 em 8–10)? Na próxima, suba o menor salto possível e volte ao começo da faixa. Polia/máquina: +1 placa. Halter: o próximo que existe (de 1 em 1 kg até 10, de 2 em 2 a partir de 12). Barra, Smith e leg press: +1 kg por lado. Se o salto passar de ~10% da carga, faça 2 reps acima do teto antes de subir."],
           ["Descanso", "2–3 min nos exercícios grandes (agachamento, leg press, supino, puxada, remadas); 60–90 s nos isolados. Descansos de 1 min deram menos ganho (Schoenfeld et al., 2016; Singer et al., 2024)."],
-          ["Volume", "~9 séries duras por músculo por semana nos 3 treinos. Acima disso o ganho extra é pequeno e o custo de tempo e cansaço (com handebol 2x) é alto (Schoenfeld et al., 2017; Pelland et al., 2024)."],
-          ["Bi-sets", "dois exercícios de grupos diferentes alternados (ex.: supino + puxada), descansando 60–90 s entre eles. Corta o tempo da sessão sem perder ganho (Iversen et al., 2021). Não use nos exercícios principais de perna."],
+          ["Volume", "~9 séries duras por músculo por semana nos 3 essenciais. Os extras somam pouco volume e em músculos pequenos (braço, ombro, core, panturrilha), que recuperam rápido. Acima disso o ganho extra é pequeno e o cansaço (com handebol 2x) cobra (Schoenfeld et al., 2017; Pelland et al., 2024)."],
+          ["Bi-sets", "dois exercícios de grupos diferentes em sequência (ex.: supino + puxada): faz um, vai direto para o outro sem descanso, e só então descansa. Um descanso por rodada. Corta o tempo da sessão sem perder ganho (Iversen et al., 2021). Não use nos exercícios principais de perna. No app, o bi-set aparece em roxo."],
           ["Prevenção para a quadra", "saltos (potência), nórdico (posterior) e Copenhagen (virilha) entram porque ponta corre, salta e corta o tempo todo. O nórdico reduziu pela metade as lesões de posterior (van Dyk et al., 2019); o programa de adutor reduziu os problemas de virilha no futebol (Harøy et al., 2019)."],
           ["Faixas de reps", "6–10 nos exercícios principais, para puxar força; 10–15 nos isolados. Para hipertrofia várias faixas funcionam; o que importa é chegar perto da falha."],
           ["Posição alongada", "flexora sentada e tríceps com o braço acima da cabeça cresceram mais que as versões tradicionais (Maeo et al., 2021; 2022)."],
@@ -2258,11 +2380,11 @@ function TelaGuia({ c, treinos }) {
       <Secao c={c} titulo="aeróbico e perda de gordura">
         <Itens c={c} itens={[
           ["Por que entra", "sem dieta controlada, o gasto vem do movimento. Aeróbico foi o que mais tirou gordura; musculação foi o que mais ganhou massa magra; os dois juntos deram a melhor composição corporal (Willis et al., 2012)."],
-          ["Quanto", "3× 20–25 min depois do treino + 40–45 min no fim de semana + 2 jogos de handebol ≈ 250–300 min de atividade por semana — a faixa que realmente mexe no peso e na gordura (Donnelly et al., 2009)."],
+          ["Quanto", "20 + 20 + 25 min depois dos essenciais + 40 min no sábado + 45 min no domingo + 2 jogos de handebol ≈ 300 min de atividade por semana — a faixa que realmente mexe no peso e na gordura (Donnelly et al., 2009)."],
           ["Zona 2", "dá para conversar em frases, mas não para cantar. Sem extremo: o intervalado da semana já é o handebol."],
           ["Atrapalha o ganho de massa?", "não: somar aeróbico à musculação não reduziu hipertrofia nem força máxima (Schumann et al., 2022). Bike atrapalha menos que corrida (Wilson et al., 2012)."],
           ["Sempre depois da musculação", "fazer o aeróbico antes reduziu o ganho de força nas pernas (Eddens et al., 2018)."],
-          ["Esteira ou bike", "segunda (depois do agachamento): caminhada inclinada, que poupa o quadríceps. Quarta e sexta: bike."],
+          ["Qual aparelho", "um por dia, já definido. Segunda: elíptico (a esteira da faculdade não inclina; o elíptico não tem impacto e pega menos o quadríceps que já agachou). Quarta, sexta e sábado: bike. Domingo: caminhada rápida na rua. Terça e quinta: nada, o handebol é o cardio."],
           ["Comida sem dieta", "duas regras só: uma fonte de proteína em cada refeição (~1,6 g/kg/dia ≈ 130 g para você; acima disso não somou ganho, Morton et al., 2018) e 8–10 mil passos por dia."],
         ]} />
       </Secao>
