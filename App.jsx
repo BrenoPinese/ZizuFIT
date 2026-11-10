@@ -87,16 +87,17 @@ async function gravarBruto(obj) {
    - ESSENCIAIS (seg, qua, sex): A, B e C, corpo todo (~55 min) + cardio
      zona 2. São eles que fazem o resultado; se faltar um, repõe no fim de
      semana.
-   - EXTRAS (ter, qui, sáb, dom): D, E, F e G, curtos e de pouco cansaço
-     (braço, ombro, core, glúteo, mobilidade). Nada de perna em dia de
-     handebol (ter e qui, 22h). Se estiver cansado, o extra é o que cai.
+   - EXTRAS (ter, qui): D e E, curtos, complementam a semana (braço,
+     ombro, core). Nada de perna em dia de handebol (22h).
+   - FIM DE SEMANA (sáb, dom): F e G são OPCIONAIS, só se ele tiver
+     vontade. Não contam na meta da semana (academia = seg a sex).
    Bi-sets (`biset`: mesmo número = par): faz um, vai direto para o outro
    sem descanso e só então descansa — um descanso por rodada (Iversen et
    al., 2021). O `descanso` dos dois exercícios do par é o da rodada.
    Cargas de polia/máquina em kg (5 kg por placa). "Por lado" = peso de UM
    lado. `obs` = só a dica necessária, curta; a explicação fica no Guia. */
 
-const PROGRAMA_VERSAO = 9; /* v8 = essenciais A–C + extras D–G, bi-sets com um descanso por rodada; v9 = marco da reformulação (14/11) */
+const PROGRAMA_VERSAO = 10; /* v8 = essenciais A–C + extras D–G, bi-sets com um descanso por rodada; v9 = marco da reformulação (14/11); v10 = academia só seg–sex, fim de semana opcional, bike depois de todo treino */
 
 const STATUS = {
   subir: { label: "pode subir", cor: "ok" },
@@ -169,8 +170,8 @@ const TREINOS_PADRAO = [
     ],
   },
   {
-    id: "F", extra: true, nome: "Extra F · Glúteo + Panturrilha + Core", dia: "Sábado", duracao: "~30 min + 40 cardio", aquecimento: "extraF",
-    aviso: "Faltou A, B ou C na semana? Faça ele hoje no lugar deste. Ontem teve perna pesada: aqui é leve, 2–3 reps sobrando.",
+    id: "F", extra: true, opcional: true, nome: "Opcional F · Glúteo + Panturrilha + Core", dia: "Sábado", duracao: "~30 min", aquecimento: "extraF",
+    aviso: "Opcional: só se tiver vontade. Ontem teve perna pesada, então aqui é leve, 2–3 reps sobrando.",
     exercicios: [
       { nome: "Elevação Pélvica com Barra", equip: "anilha", series: 3, reps: "8-12", descanso: 90, alvo: 20, status: "novo", obs: "Pausa de 1 s no topo." },
       { nome: "Panturrilha Sentado", equip: "placa", series: 3, reps: "12-15", descanso: 60, alvo: 30, status: "novo", biset: 1, obs: "Pausa de 1 s embaixo." },
@@ -178,8 +179,8 @@ const TREINOS_PADRAO = [
     ],
   },
   {
-    id: "G", extra: true, nome: "Extra G · Mobilidade + Core (em casa)", dia: "Domingo", duracao: "~15 min + 45 caminhada",
-    aviso: "Dia de recuperar: nada pesado. Amanhã tem agachamento.",
+    id: "G", extra: true, opcional: true, nome: "Opcional G · Mobilidade + Core (em casa)", dia: "Domingo", duracao: "~15 min",
+    aviso: "Opcional: só se tiver vontade. Nada pesado, amanhã tem agachamento.",
     exercicios: [
       { nome: "Mobilidade 90/90 de Quadril", equip: "corpo", series: 2, reps: "8 cada lado", descanso: 30, alvo: 0, status: "novo", obs: "Gire os joelhos de um lado para o outro, tronco alto." },
       { nome: "Livro Aberto (torácica)", equip: "corpo", series: 2, reps: "8 cada lado", descanso: 30, alvo: 0, status: "novo", obs: "Deitado de lado, abra o braço olhando a mão." },
@@ -250,7 +251,7 @@ const MARCOS_IMPORTADOS = [
 const MARCOS_PROGRAMA = [
   { data: "2026-10-26", tipo: "ciclo", nota: "Programa v5 — hipertrofia e força. Seg e qua essenciais (corpo todo); ter, qui e sex complementam." },
   { data: "2026-11-09", tipo: "ciclo", nota: "Programa v6 — recomposição. Seg/qua/sex corpo todo (~55 min) + 20–25 min de aeróbico zona 2; fim de semana: aeróbico longo e reposição. Prevenção para a quadra: saltos, nórdico, Copenhagen." },
-  { data: "2026-11-10", tipo: "ciclo", nota: "Treino todo dia: A, B e C (seg/qua/sex) são os essenciais; D, E, F e G (ter/qui/sáb/dom) são extras curtos. Bi-sets com um descanso por rodada; cardio fixo do dia." },
+  { data: "2026-11-10", tipo: "ciclo", nota: "Academia de segunda a sexta: A, B e C (seg/qua/sex) essenciais; D e E (ter/qui) extras; sábado e domingo opcionais. Bi-sets com um descanso por rodada; bike depois de todo treino." },
   { data: "2026-11-14", tipo: "revisao", nota: "Reformular o programa inteiro com o Claude (não está do jeito que o Breno quer) — exportar backup antes." },
   { data: "2026-11-28", tipo: "revisao", nota: "Férias da faculdade (sem handebol até o ano que vem) — exportar backup e pedir ao Claude o plano de férias." },
 ];
@@ -274,7 +275,7 @@ const SEMANAS_ESPECIAIS = [
   {
     inicio: "2026-11-09", fim: "2026-11-15",
     feitosFora: { A: "2026-11-09" }, /* o A de segunda foi feito no plano anterior: conta como feito mesmo sem registro no app */
-    nota: "Semana de transição: o A de segunda já foi feito. Ter D · Qua B · Qui E · Sex C · Sáb F · Dom G. No fim de semana a gente reformula o programa inteiro — exporte o backup antes.",
+    nota: "Semana de transição: o A de segunda já foi feito. Ter D · Qua B · Qui E · Sex C. Sábado e domingo são opcionais. No fim de semana a gente reformula o programa inteiro — exporte o backup antes.",
   },
   { inicio: "2026-10-19", fim: "2026-10-25", handebol: { dias: [], hora: "" } },
   {
@@ -373,21 +374,20 @@ const AQUECIMENTOS = {
 };
 
 /* Cardio: UMA opção fixa por dia, sempre depois da musculação (Eddens et
-   al., 2018), em zona 2. Ele só marca que fez. A esteira da faculdade não
-   inclina, então na segunda (depois do agachamento) vai o elíptico: sem
-   impacto e pega menos o quadríceps. Bike atrapalha menos o ganho de força
-   e massa que corrida (Wilson et al., 2012). Dia de handebol não tem
-   cardio: o jogo já é o intenso da semana e somar mais prejudica a força
-   explosiva (Schumann et al., 2022). */
+   al., 2018), em zona 2. Ele só marca que fez. Ele gosta de cardio depois
+   do treino, prefere bike e não quer elíptico (10/11/2026). Bike também
+   atrapalha menos o ganho de força e massa que corrida (Wilson et al.,
+   2012). Em dia de handebol (22h) a bike é curta e leve, para não chegar
+   cansado na quadra (Schumann et al., 2022). Fim de semana: opcional. */
 const TIPO_CARDIO = { bike: "Bike", esteira: "Esteira", eliptico: "Elíptico", caminhada: "Caminhada rápida" };
 const CARDIO_POR_DIA = {
-  1: { tipo: "eliptico", min: 20 },
-  2: null,
+  1: { tipo: "bike", min: 20 },
+  2: { tipo: "bike", min: 15, nota: "bem leve · handebol à noite" },
   3: { tipo: "bike", min: 20 },
-  4: null,
+  4: { tipo: "bike", min: 15, nota: "bem leve · handebol à noite" },
   5: { tipo: "bike", min: 25 },
-  6: { tipo: "bike", min: 40 },
-  0: { tipo: "caminhada", min: 45 },
+  6: { tipo: "bike", min: 30, opcional: true },
+  0: { tipo: "caminhada", min: 40, opcional: true },
 };
 
 const dowDe = (iso) => new Date(`${iso}T12:00:00`).getDay();
@@ -403,7 +403,6 @@ function textoHandebol(h = handebolDaSemana()) {
 }
 
 function cardioDoDia(iso = hoje()) {
-  if (ehDiaDeHandebol(iso)) return null;
   return CARDIO_POR_DIA[dowDe(iso)] || null;
 }
 
@@ -947,7 +946,8 @@ export default function AppTreino() {
     const handebol = conclusoes.filter((x) => x.data >= inicio && x.treino === "handebol").length;
     const essenciais = treinos.filter((t) => !t.extra);
     const essenciaisFeitos = essenciais.filter((t) => treinosFeitos.has(t.id)).length;
-    return { feitos: dias.size, meta: 7, dias, inicio, treinosFeitos, handebol, essenciaisFeitos, essenciaisMeta: essenciais.length };
+    const diasUteis = [...dias].filter((d) => { const w = dowDe(d); return w >= 1 && w <= 5; }).length;
+    return { feitos: diasUteis, meta: 5, dias, inicio, treinosFeitos, handebol, essenciaisFeitos, essenciaisMeta: essenciais.length };
   }, [series, conclusoes, cardios, treinos]);
 
   const exportarDados = () => {
@@ -1161,15 +1161,13 @@ function Selo({ c, status }) {
 
 function TelaTreinos({ c, treinos, ultimaVez, iniciar, sessao, continuar, progresso, toggleHandebol, conclusoes, descanso, setDescanso, cardios, registrarCardio, removerCardio, abrirCardio, onExportar, onImportar }) {
   const treinoDeHoje = treinoDoDia(treinos, progresso.treinosFeitos);
-  /* fim de semana: essencial que faltou passa na frente do extra
-     (só um por dia; se já fez algum treino hoje, não sugere outro) */
+  /* fim de semana é opcional: só lembra, sem cobrar, se faltou um essencial */
   const dowHoje = dowDe(hoje());
-  const treinouHoje = conclusoes.some((x) => x.data === hoje() && treinos.some((t) => t.id === x.treino));
-  const reposicao = (dowHoje === 6 || dowHoje === 0) && !treinouHoje
-    ? treinos.find((t) => !t.extra && !progresso.treinosFeitos.has(t.id)) || null
-    : null;
+  const fimDeSemana = dowHoje === 6 || dowHoje === 0;
+  const faltou = fimDeSemana ? treinos.find((t) => !t.extra && !progresso.treinosFeitos.has(t.id)) || null : null;
   const essenciais = treinos.filter((t) => !t.extra);
-  const extras = treinos.filter((t) => t.extra);
+  const extras = treinos.filter((t) => t.extra && !t.opcional);
+  const opcionais = treinos.filter((t) => t.opcional);
   const handebol = handebolDaSemana();
   const diaDeHandebol = ehDiaDeHandebol();
   const especial = semanaEspecial();
@@ -1215,8 +1213,9 @@ function TelaTreinos({ c, treinos, ultimaVez, iniciar, sessao, continuar, progre
             const ehHoje = iso === hoje();
             const essencial = t && !t.extra;
             const hb = handebolDaSemana(iso).dias.includes(dow);
+            const opc = dow === 6 || dow === 0;
             return (
-              <div key={dow} className="flex-1 flex flex-col items-center gap-1">
+              <div key={dow} className="flex-1 flex flex-col items-center gap-1" style={{ opacity: opc && !f ? 0.45 : 1 }}>
                 <div className="w-full rounded-full"
                   style={{ height: essencial ? 8 : 5, marginTop: essencial ? 0 : 3, background: f ? c.ok : c.surface2,
                     outline: ehHoje ? `1.5px solid ${c.accent}` : "none", outlineOffset: 1 }} />
@@ -1224,7 +1223,7 @@ function TelaTreinos({ c, treinos, ultimaVez, iniciar, sessao, continuar, progre
                   {NOME_DIA[dow].slice(0, 3)}
                 </span>
                 <span className="text-[9px] leading-none" style={{ color: c.muted, fontFamily: MONO }}>
-                  {t?.id || "–"}{hb ? <span style={{ color: c.warn }}>·H</span> : ""}
+                  {opc ? "opc" : t?.id || "–"}{hb ? <span style={{ color: c.warn }}>·H</span> : ""}
                 </span>
               </div>
             );
@@ -1232,20 +1231,23 @@ function TelaTreinos({ c, treinos, ultimaVez, iniciar, sessao, continuar, progre
         </div>
       </div>
 
-      {(reposicao || treinoDeHoje) && (() => {
-        const t = reposicao || treinoDeHoje;
+      {treinoDeHoje && (() => {
+        const t = treinoDeHoje;
         const feito = progresso.treinosFeitos.has(t.id);
+        const tag = t.opcional ? "opcional" : t.extra ? "extra" : "essencial";
         return (
-          <div className="px-4 py-3 rounded-2xl" style={{ background: c.surface, border: `1px solid ${feito ? c.ok : c.accent}` }}>
+          <div className="px-4 py-3 rounded-2xl"
+            style={{ background: c.surface, border: `1px ${t.opcional && !feito ? "dashed" : "solid"} ${feito ? c.ok : t.opcional ? c.line : c.accent}` }}>
             <div className="flex items-center gap-3">
-              <CalendarDays size={18} style={{ color: feito ? c.ok : c.accent, flexShrink: 0 }} />
+              <CalendarDays size={18} style={{ color: feito ? c.ok : t.opcional ? c.muted : c.accent, flexShrink: 0 }} />
               <div className="flex-1 text-sm min-w-0">
-                <b>{reposicao ? `Hoje: repor o ${t.id}` : `Hoje: treino ${t.id}`}</b>
+                <b>{t.opcional ? "Hoje: descanso ou opcional" : `Hoje: treino ${t.id}`}</b>
                 <span className="ml-1.5 px-1.5 py-0.5 rounded text-[10px] uppercase tracking-wide align-middle"
-                  style={{ fontFamily: MONO, background: t.extra ? c.surface2 : c.accent, color: t.extra ? c.muted : c.accentInk }}>
-                  {t.extra ? "extra" : "essencial"}
+                  style={{ fontFamily: MONO, background: tag === "essencial" ? c.accent : c.surface2, color: tag === "essencial" ? c.accentInk : c.muted }}>
+                  {tag}
                 </span>
                 <div style={{ color: c.muted }}>
+                  {t.opcional && <>Se tiver vontade: {t.id} · </>}
                   {t.nome.split("·").slice(1).join("·").trim() || t.nome}
                   {t.duracao && <span style={{ fontFamily: MONO }}> · {t.duracao}</span>}
                   {diaDeHandebol && <span style={{ color: c.warn }}> · handebol {handebol.hora}</span>}
@@ -1255,14 +1257,14 @@ function TelaTreinos({ c, treinos, ultimaVez, iniciar, sessao, continuar, progre
                 ? <Check size={18} style={{ color: c.ok, flexShrink: 0 }} />
                 : <button type="button" onClick={() => iniciar(t)}
                     className="px-3 py-1.5 rounded-lg text-sm font-semibold shrink-0"
-                    style={{ background: c.accent, color: c.accentInk }}>Iniciar</button>}
+                    style={{ background: t.opcional ? c.surface2 : c.accent, color: t.opcional ? c.ink : c.accentInk }}>Iniciar</button>}
             </div>
-            {reposicao && treinoDeHoje && (
+            {faltou && !feito && (
               <div className="text-xs mt-2" style={{ color: c.muted }}>
-                Faltou o {reposicao.id} na semana: ele vale mais que o extra {treinoDeHoje.id}.{" "}
-                <button type="button" onClick={() => iniciar(treinoDeHoje)} className="underline" style={{ color: c.ink }}>
-                  Fazer o {treinoDeHoje.id} mesmo assim
-                </button>
+                O {faltou.id} não saiu esta semana. Se quiser, dá para{" "}
+                <button type="button" onClick={() => iniciar(faltou)} className="underline" style={{ color: c.ink }}>
+                  fazer o {faltou.id} hoje
+                </button>{" "}— sem obrigação.
               </div>
             )}
           </div>
@@ -1287,7 +1289,7 @@ function TelaTreinos({ c, treinos, ultimaVez, iniciar, sessao, continuar, progre
         </button>
       )}
 
-      {[["essenciais", "seg · qua · sex — o que faz o resultado", essenciais], ["extras", "ter · qui · sáb · dom — curtos, se der", extras]].map(([titulo, sub, lista]) => (
+      {[["essenciais", "seg · qua · sex — o que faz o resultado", essenciais], ["extras", "ter · qui — complementam a semana", extras], ["fim de semana", "opcional — só se tiver vontade", opcionais]].map(([titulo, sub, lista]) => (
         <div key={titulo} className="space-y-2">
           <div className="flex items-baseline justify-between pt-2 px-1">
             <span className="text-xs uppercase tracking-widest font-semibold" style={{ color: titulo === "essenciais" ? c.ink : c.muted, fontFamily: MONO }}>{titulo}</span>
@@ -2116,7 +2118,7 @@ function CardCardio({ c, cardios, registrar, remover }) {
       <div className="flex-1 min-w-0">
         <div className="font-semibold">{nome} · <span style={{ fontFamily: MONO }}>{rec.min} min</span></div>
         <div className="text-sm" style={{ color: feito ? c.ok : c.muted }}>
-          {feito ? "feito hoje" : "zona 2 · depois da musculação"}
+          {feito ? "feito hoje" : rec.opcional ? "opcional · só se tiver vontade" : rec.nota || "zona 2 · depois da musculação"}
         </div>
       </div>
       <button type="button"
@@ -2353,7 +2355,7 @@ function TelaGuia({ c, treinos }) {
                     <b>{NOME_DIA[dow]}</b>{" "}
                     <span className="px-1.5 py-0.5 rounded text-[9px] uppercase tracking-wide align-middle"
                       style={{ fontFamily: MONO, background: t && !t.extra ? c.accent : c.surface, color: t && !t.extra ? c.accentInk : c.muted }}>
-                      {t && !t.extra ? "essencial" : "extra"}
+                      {t?.opcional ? "opcional" : t && !t.extra ? "essencial" : "extra"}
                     </span>
                   </div>
                   {t && <div style={{ color: c.muted }}>{t.nome.split("·").slice(1).join("·").trim()}</div>}
@@ -2368,9 +2370,9 @@ function TelaGuia({ c, treinos }) {
           })}
         </div>
         <p className="text-xs mt-3" style={{ color: c.muted }}>
-          A, B e C são o que faz o resultado: ~9 séries por músculo por semana. Faltou um? Faça no sábado no lugar do extra F.
-          D, E, F e G são extras curtos e leves (braço, ombro, core, glúteo, mobilidade): somam gasto e prevenção sem atrapalhar a quadra.
-          Cansado ou com dor? O extra é o que cai, nunca o essencial.
+          Academia de segunda a sexta. A, B e C são o que faz o resultado: ~9 séries por músculo por semana.
+          D e E (terça e quinta) complementam, curtos e sem perna por causa do handebol. Cansado ou com dor? O extra é o que cai, nunca o essencial.
+          Sábado e domingo são opcionais: treine só se tiver vontade, descansar também conta.
         </p>
       </Secao>
 
@@ -2390,11 +2392,11 @@ function TelaGuia({ c, treinos }) {
       <Secao c={c} titulo="aeróbico e perda de gordura">
         <Itens c={c} itens={[
           ["Por que entra", "sem dieta controlada, o gasto vem do movimento. Aeróbico foi o que mais tirou gordura; musculação foi o que mais ganhou massa magra; os dois juntos deram a melhor composição corporal (Willis et al., 2012)."],
-          ["Quanto", "20 + 20 + 25 min depois dos essenciais + 40 min no sábado + 45 min no domingo + 2 jogos de handebol ≈ 300 min de atividade por semana — a faixa que realmente mexe no peso e na gordura (Donnelly et al., 2009)."],
+          ["Quanto", "bike depois de todo treino: 20 + 15 + 20 + 15 + 25 min ≈ 95 min, + 2 jogos de handebol ≈ 250 min de atividade por semana — a faixa que realmente mexe no peso e na gordura (Donnelly et al., 2009). O fim de semana, se rolar, é bônus."],
           ["Zona 2", "dá para conversar em frases, mas não para cantar. Sem extremo: o intervalado da semana já é o handebol."],
           ["Atrapalha o ganho de massa?", "não: somar aeróbico à musculação não reduziu hipertrofia nem força máxima (Schumann et al., 2022). Bike atrapalha menos que corrida (Wilson et al., 2012)."],
           ["Sempre depois da musculação", "fazer o aeróbico antes reduziu o ganho de força nas pernas (Eddens et al., 2018)."],
-          ["Qual aparelho", "um por dia, já definido. Segunda: elíptico (a esteira da faculdade não inclina; o elíptico não tem impacto e pega menos o quadríceps que já agachou). Quarta, sexta e sábado: bike. Domingo: caminhada rápida na rua. Terça e quinta: nada, o handebol é o cardio."],
+          ["Por que bike", "é a sua preferência e também o que menos atrapalha o ganho de força e massa (Wilson et al., 2012). Terça e quinta ela é curta e bem leve, porque à noite tem handebol."],
           ["Comida sem dieta", "duas regras só: uma fonte de proteína em cada refeição (~1,6 g/kg/dia ≈ 130 g para você; acima disso não somou ganho, Morton et al., 2018) e 8–10 mil passos por dia."],
         ]} />
       </Secao>
