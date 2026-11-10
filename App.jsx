@@ -96,7 +96,7 @@ async function gravarBruto(obj) {
    Cargas de polia/máquina em kg (5 kg por placa). "Por lado" = peso de UM
    lado. `obs` = só a dica necessária, curta; a explicação fica no Guia. */
 
-const PROGRAMA_VERSAO = 8; /* v8 = essenciais A–C + extras D–G, bi-sets com um descanso por rodada */
+const PROGRAMA_VERSAO = 9; /* v8 = essenciais A–C + extras D–G, bi-sets com um descanso por rodada; v9 = marco da reformulação (14/11) */
 
 const STATUS = {
   subir: { label: "pode subir", cor: "ok" },
@@ -251,6 +251,7 @@ const MARCOS_PROGRAMA = [
   { data: "2026-10-26", tipo: "ciclo", nota: "Programa v5 — hipertrofia e força. Seg e qua essenciais (corpo todo); ter, qui e sex complementam." },
   { data: "2026-11-09", tipo: "ciclo", nota: "Programa v6 — recomposição. Seg/qua/sex corpo todo (~55 min) + 20–25 min de aeróbico zona 2; fim de semana: aeróbico longo e reposição. Prevenção para a quadra: saltos, nórdico, Copenhagen." },
   { data: "2026-11-10", tipo: "ciclo", nota: "Treino todo dia: A, B e C (seg/qua/sex) são os essenciais; D, E, F e G (ter/qui/sáb/dom) são extras curtos. Bi-sets com um descanso por rodada; cardio fixo do dia." },
+  { data: "2026-11-14", tipo: "revisao", nota: "Reformular o programa inteiro com o Claude (não está do jeito que o Breno quer) — exportar backup antes." },
   { data: "2026-11-28", tipo: "revisao", nota: "Férias da faculdade (sem handebol até o ano que vem) — exportar backup e pedir ao Claude o plano de férias." },
 ];
 const MARCOS_REMOVIDOS = ["2026-10-27", "2026-10-19", "2026-12-07", "2026-12-14"];
@@ -270,6 +271,11 @@ const HANDEBOL_PADRAO = { dias: [2, 4], hora: "22h" };
    indicado ainda não foi feito na semana, ele passa na frente; `avisos`
    troca o aviso do treino só nessa semana. */
 const SEMANAS_ESPECIAIS = [
+  {
+    inicio: "2026-11-09", fim: "2026-11-15",
+    feitosFora: { A: "2026-11-09" }, /* o A de segunda foi feito no plano anterior: conta como feito mesmo sem registro no app */
+    nota: "Semana de transição: o A de segunda já foi feito. Ter D · Qua B · Qui E · Sex C · Sáb F · Dom G. No fim de semana a gente reformula o programa inteiro — exporte o backup antes.",
+  },
   { inicio: "2026-10-19", fim: "2026-10-25", handebol: { dias: [], hora: "" } },
   {
     inicio: "2026-10-26", fim: "2026-11-01",
@@ -934,6 +940,10 @@ export default function AppTreino() {
     const treinosFeitos = new Set(
       conclusoes.filter((x) => x.data >= inicio && treinos.some((t) => t.id === x.treino)).map((x) => x.treino)
     );
+    /* treinos feitos fora do app nesta semana (semana especial) */
+    Object.entries(semanaEspecial()?.feitosFora || {}).forEach(([id, data]) => {
+      if (data >= inicio) { treinosFeitos.add(id); dias.add(data); }
+    });
     const handebol = conclusoes.filter((x) => x.data >= inicio && x.treino === "handebol").length;
     const essenciais = treinos.filter((t) => !t.extra);
     const essenciaisFeitos = essenciais.filter((t) => treinosFeitos.has(t.id)).length;
