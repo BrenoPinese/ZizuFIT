@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  LineChart, Line, BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
 import {
   Dumbbell, History, CalendarDays, Play, Check, Plus, Minus,
@@ -67,7 +67,7 @@ const CORES_DESTAQUE = {
   azul: { nome: "Azul", porque: "calma e foco (a cor antiga)",
     dark: { accent: "#4C86F5", accentInk: "#0B0D10" }, light: { accent: "#1E5BC6", accentInk: "#FFFFFF" } },
 };
-const VERSAO_APP = 15;
+const VERSAO_APP = 16;
 
 const SANS = '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
 const MONO = SANS; /* números: Inter com algarismos tabulares (ver useFonte) */
@@ -1105,7 +1105,7 @@ export default function AppTreino() {
             : <Vazio c={c} texto="Nenhum treino em andamento." acao="Escolher treino" onAcao={() => setAba("treinos")} />
         )}
 
-        {aba === "historico" && <TelaHistorico c={c} series={series} />}
+        {aba === "historico" && <TelaHistorico c={c} series={series} treinos={treinos} />}
         {aba === "corpo" && <TelaCorpo c={c} pesos={pesos} setPesos={setPesos} />}
         {aba === "mais" && (
           <TelaMais c={c} modoTema={modoTema} setModoTema={setModoTema}
@@ -2052,10 +2052,362 @@ function Stepper({ c, rotulo, valor, setValor, passo, min, ajusta, dica, dicaCor
 
 /* ------------------------------------------------------------ tela 3 */
 
+/* Músculos de cada exercício (v16). Casamento por palavra-chave no nome sem
+   acento, na ordem — assim pega também os exercícios antigos do histórico.
+   Músculo principal conta 1 série; auxiliar conta ½. */
+const MUSCULOS = [
+  ["peito", "Peito"], ["costas", "Costas"], ["ombros", "Ombros"], ["biceps", "Bíceps"],
+  ["triceps", "Tríceps"], ["antebraco", "Antebraço"], ["core", "Core"], ["quadriceps", "Quadríceps"],
+  ["posterior", "Posterior"], ["gluteos", "Glúteos"], ["adutores", "Adutores"], ["panturrilha", "Panturrilha"],
+];
+const NOME_MUSCULO = Object.fromEntries(MUSCULOS);
+const REGRAS_MUSCULO = [
+  [/mobilidade|livro aberto|profundo segurando/, [], []],
+  [/salto/, ["quadriceps"], ["gluteos", "panturrilha"]],
+  [/bulgaro/, ["quadriceps", "gluteos"], ["adutores"]],
+  [/agachamento|leg press|hack squat/, ["quadriceps"], ["gluteos", "adutores"]],
+  [/extensora/, ["quadriceps"], []],
+  [/flexora|nordico/, ["posterior"], []],
+  [/stiff|terra/, ["posterior"], ["gluteos"]],
+  [/pelvica|gluteo|abdutora/, ["gluteos"], ["posterior"]],
+  [/adutor|copenhagen/, ["adutores"], ["core"]],
+  [/panturrilha|gemeos/, ["panturrilha"], []],
+  [/invertido|face pull/, ["ombros"], ["costas"]],
+  [/rotacao externa/, ["ombros"], []],
+  [/supino/, ["peito"], ["triceps", "ombros"]],
+  [/voador|crossover|crucifixo/, ["peito"], []],
+  [/puxada|barra fixa|pulldown/, ["costas"], ["biceps"]],
+  [/remada/, ["costas"], ["biceps", "ombros"]],
+  [/encolhimento/, ["costas"], []],
+  [/desenvolvimento/, ["ombros"], ["triceps"]],
+  [/elevacao lateral|elevacao frontal/, ["ombros"], []],
+  [/triceps|mergulho/, ["triceps"], []],
+  [/rosca inversa|punho/, ["antebraco"], ["biceps"]],
+  [/martelo/, ["biceps"], ["antebraco"]],
+  [/rosca/, ["biceps"], []],
+  [/abdominal|prancha|dead bug|pallof/, ["core"], []],
+];
+const semAcento = (t) => t.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+function musculosDe(nome) {
+  const n = semAcento(nome);
+  const r = REGRAS_MUSCULO.find(([re]) => re.test(n));
+  return r ? { p: r[1], s: r[2] } : { p: [], s: [] };
+}
+/* séries por músculo nas séries dadas */
+function seriesPorMusculo(lista) {
+  const m = Object.fromEntries(MUSCULOS.map(([k]) => [k, 0]));
+  lista.forEach((s) => {
+    const { p, s: sec } = musculosDe(s.exercicio);
+    p.forEach((k) => { m[k] += 1; });
+    sec.forEach((k) => { m[k] += 0.5; });
+  });
+  return m;
+}
+const META_SERIES = 10; /* ≥10 séries/semana por músculo (Schoenfeld, Ogborn & Krieger, 2017) */
+
+/* boneco de frente e de costas; cada região pinta pela quantidade de séries */
+function MapaMusculos({ c, valores }) {
+  const cor = (k) => {
+    const v = valores[k] || 0;
+    return v <= 0 ? { fill: c.surface2 } : { fill: c.accent, fillOpacity: 0.3 + 0.7 * Math.min(1, v / META_SERIES) };
+  };
+  const neutro = { fill: c.surface2, fillOpacity: 0.5 };
+  const linha = { stroke: c.surface, strokeWidth: 1.1, strokeLinecap: "round", fill: "none" };
+  const espelho = (lado) => (
+    <>
+      <g>{lado}</g>
+      <g transform="matrix(-1 0 0 1 100 0)">{lado}</g>
+    </>
+  );
+  /* metade esquerda; a direita é o espelho */
+  const bracos = (sup) => (
+    <>
+      <ellipse cx="27" cy="37.5" rx="6.6" ry="8.2" transform="rotate(22 27 37.5)" {...cor("ombros")} />
+      <ellipse cx="22.2" cy="56" rx="4.9" ry="10.2" transform="rotate(9 22.2 56)" {...cor(sup)} />
+      <ellipse cx="18.4" cy="78.5" rx="4.1" ry="11" transform="rotate(11 18.4 78.5)" {...cor("antebraco")} />
+      <circle cx="15.6" cy="93.5" r="3.4" {...neutro} />
+      <ellipse cx="42" cy="147" rx="3.8" ry="2.8" {...neutro} />
+      <ellipse cx="42" cy="190" rx="5" ry="2.8" {...neutro} />
+    </>
+  );
+  const cabeca = (
+    <>
+      <ellipse cx="50" cy="12.5" rx="8.3" ry="10" {...neutro} />
+      <path d="M45 21.5 H55 L56.5 29 H43.5 Z" {...neutro} />
+    </>
+  );
+  const frente = (
+    <>
+      {cabeca}
+      {espelho(
+        <>
+          {bracos("biceps")}
+          <path d="M49.2 31 V49.5 C44 52 38 51 34.2 47 C33 41 33.8 35 37.2 32 Z" {...cor("peito")} />
+          <rect x="35.2" y="55" width="3.8" height="27" rx="1.9" {...cor("core")} />
+          <path d="M36.6 98 C34 112 34.5 128 38 143 L46 143 C47 132 47.5 121 46 116.5 C44.4 112 44.2 104 45 98 Z" {...cor("quadriceps")} />
+          <path d="M46.5 99 L49.3 99 L49.3 123 C47.6 118.5 45.8 110 46.5 99 Z" {...cor("adutores")} />
+          <path d="M38 151 C36.3 160 37 172 40 184.5 L45 184.5 C46.8 172 47 160 46 151 Z" {...cor("panturrilha")} />
+        </>
+      )}
+      <rect x="40.5" y="53" width="19" height="33" rx="6" {...cor("core")} />
+      <path d="M50 55 V84 M41.5 64 H58.5 M41.5 74 H58.5" {...linha} />
+      <path d="M38.5 88 H61.5 L58.5 97.5 H41.5 Z" {...neutro} />
+    </>
+  );
+  const costas = (
+    <>
+      {cabeca}
+      <path d="M43 24 H57 L66 33 L50 45 L34 33 Z" {...cor("costas")} />
+      {espelho(
+        <>
+          {bracos("triceps")}
+          <path d="M35 36.5 L48.8 47.5 V77 C43 75 39 69 36.4 61 C34.4 53 34.2 44 35 36.5 Z" {...cor("costas")} />
+          <ellipse cx="43.6" cy="96.5" rx="7" ry="8.6" {...cor("gluteos")} />
+          <path d="M37 107 C35 119 36 131 39 143 L46.8 143 C48 131 48.6 119 48.2 107 Z" {...cor("posterior")} />
+          <path d="M37.6 150.5 C35.2 158 35.8 168 39.6 176 L40.8 184.5 L45 184.5 L46.2 176 C48.6 168 48.6 158 46.6 150.5 Z" {...cor("panturrilha")} />
+        </>
+      )}
+      <rect x="42" y="78.5" width="16" height="8.5" rx="3" {...cor("costas")} />
+    </>
+  );
+  return (
+    <div className="grid grid-cols-2 gap-3">
+      {[["Frente", frente], ["Costas", costas]].map(([rot, corpo]) => (
+        <figure key={rot} className="flex flex-col items-center">
+          <svg viewBox="8 0 84 196" className="w-full" style={{ maxHeight: 250 }} role="img" aria-label={`Músculos trabalhados — ${rot.toLowerCase()}`}>
+            {corpo}
+          </svg>
+          <figcaption className="text-[11px] font-semibold mt-1" style={{ color: c.muted }}>{rot}</figcaption>
+        </figure>
+      ))}
+    </div>
+  );
+}
+
+const fmtNum = (n) => String(Math.round(n * 10) / 10).replace(".", ",");
+const DIA_CURTO = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+const segundaDe = (iso) => addDias(iso, -((dowDe(iso) + 6) % 7));
+
+function Segmentado({ c, opcoes, valor, setValor }) {
+  return (
+    <div className="grid gap-1 p-1 rounded-2xl" style={{ background: c.surface2, gridTemplateColumns: `repeat(${opcoes.length}, 1fr)` }}>
+      {opcoes.map(([id, nome]) => (
+        <button key={id} type="button" onClick={() => setValor(id)}
+          className="py-2 rounded-xl text-sm font-semibold"
+          style={{ background: valor === id ? c.surface : "transparent", color: valor === id ? c.ink : c.muted, boxShadow: valor === id ? "0 1px 3px rgba(0,0,0,.15)" : "none" }}>
+          {nome}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function TelaHistorico({ c, series, treinos }) {
+  const [vista, setVista] = useState("resumo");
+  if (!series.length) return <Vazio c={c} texto="Seu histórico aparece aqui depois da primeira série registrada." />;
+  return (
+    <div className="px-4 space-y-4">
+      <Segmentado c={c} valor={vista} setValor={setVista}
+        opcoes={[["resumo", "Resumo"], ["treinos", "Treinos"], ["exercicios", "Exercícios"]]} />
+      {vista === "resumo" && <HistResumo c={c} series={series} />}
+      {vista === "treinos" && <HistTreinos c={c} series={series} />}
+      {vista === "exercicios" && <HistExercicios c={c} series={series} treinos={treinos} />}
+    </div>
+  );
+}
+
+/* ---------- Resumo: números do mês, mapa de músculos, séries por semana */
+function HistResumo({ c, series }) {
+  const [infoMapa, setInfoMapa] = useState(false);
+  const h = hoje();
+  const d30 = addDias(h, -29), d60 = addDias(h, -59), d7 = addDias(h, -6);
+
+  const dados = useMemo(() => {
+    const comDia = series.map((s) => ({ ...s, dia: diaLocal(s.data) }));
+    const janela = (de, ate) => comDia.filter((s) => s.dia >= de && s.dia <= ate);
+    const stats = (l) => ({
+      treinos: new Set(l.map((s) => s.dia)).size,
+      series: l.length,
+      volume: l.reduce((n, s) => n + (Number(s.carga) || 0) * (Number(s.reps) || 0), 0) / 1000,
+    });
+    const atual = stats(janela(d30, h));
+    const antes = stats(janela(d60, addDias(d30, -1)));
+    const musc = seriesPorMusculo(janela(d7, h));
+    /* séries por semana, últimas 8 semanas (segunda a domingo) */
+    const seg = segundaDe(h);
+    const semanas = Array.from({ length: 8 }, (_, i) => {
+      const ini = addDias(seg, -7 * (7 - i));
+      const fim = addDias(ini, 6);
+      return { ini, rotulo: dataBR(ini).slice(0, 5), series: janela(ini, fim).length, atual: i === 7 };
+    });
+    return { atual, antes, musc, semanas };
+  }, [series, h]); // eslint-disable-line
+
+  const { atual, antes, musc, semanas } = dados;
+  const ordem = MUSCULOS.map(([k]) => k).sort((a, b) => musc[b] - musc[a]);
+  const maxBarra = Math.max(20, ...Object.values(musc));
+
+  const tiles = [
+    ["Treinos", atual.treinos, atual.treinos - antes.treinos, ""],
+    ["Séries", atual.series, atual.series - antes.series, ""],
+    ["Volume", fmtNum(atual.volume), atual.volume - antes.volume, " t"],
+  ];
+
+  return (
+    <>
+      <div>
+        <div className="flex items-baseline justify-between px-1 pb-2">
+          <span className="text-sm font-bold">Últimos 30 dias</span>
+          <span className="text-xs" style={{ color: c.muted }}>vs. 30 dias antes</span>
+        </div>
+        <div className="grid grid-cols-3 gap-2">
+          {tiles.map(([rot, v, delta, un]) => (
+            <div key={rot} className="rounded-3xl px-3 py-3" style={{ background: c.surface, boxShadow: c.sombra }}>
+              <div className="text-xs font-semibold" style={{ color: c.muted }}>{rot}</div>
+              <div className="text-[26px] font-extrabold tracking-tight leading-tight">{v}<span className="text-sm font-bold" style={{ color: c.muted }}>{un}</span></div>
+              <div className="text-xs font-bold" style={{ color: Math.round(delta * 10) === 0 ? c.muted : delta > 0 ? c.ok : c.pr }}>
+                {Math.round(delta * 10) === 0 ? "=" : `${delta > 0 ? "+" : "−"}${fmtNum(Math.abs(delta))}`}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <section className="rounded-3xl p-4" style={{ background: c.surface, boxShadow: c.sombra }}>
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="font-bold">Músculos trabalhados</div>
+            <div className="text-xs" style={{ color: c.muted }}>séries nos últimos 7 dias</div>
+          </div>
+          <BotaoIcone c={c} icone={Info} onClick={() => setInfoMapa((v) => !v)} ativo={infoMapa} rotulo="Como ler o mapa" size={16} />
+        </div>
+        {infoMapa && (
+          <p className="text-sm mt-3 p-3 rounded-2xl leading-relaxed" style={{ background: c.surface2, color: c.muted }}>
+            Cada série conta 1 para o músculo principal do exercício e ½ para o auxiliar (ex.: supino = peito 1, tríceps e ombro ½).
+            Quanto mais forte a cor, mais séries. A marca em <b style={{ color: c.ink }}>{META_SERIES}</b> é o mínimo semanal ligado a mais
+            hipertrofia (Schoenfeld, Ogborn & Krieger, 2017). Abaixo disso não é erro, mas mostra o que ficou para trás.
+          </p>
+        )}
+        <div className="mt-3 px-2"><MapaMusculos c={c} valores={musc} /></div>
+        <div className="flex items-center justify-center gap-2 mt-2 text-[11px] font-semibold" style={{ color: c.muted }}>
+          <span>0</span>
+          <span className="h-2 w-24 rounded-full" style={{ background: `linear-gradient(to right, ${c.surface2}, ${c.accent})` }} />
+          <span>{META_SERIES}+ séries</span>
+        </div>
+        <div className="mt-4 space-y-2">
+          {ordem.map((k) => {
+            const v = musc[k];
+            return (
+              <div key={k} className="grid items-center gap-3" style={{ gridTemplateColumns: "84px 1fr 34px" }}>
+                <span className="text-sm font-medium truncate">{NOME_MUSCULO[k]}</span>
+                <div className="h-2.5 rounded-full relative" style={{ background: c.surface2 }}>
+                  <div className="h-full rounded-full" style={{ width: `${Math.min(100, (v / maxBarra) * 100)}%`, background: v >= META_SERIES ? c.ok : c.accent, opacity: v ? 1 : 0 }} />
+                  <span className="absolute top-[-3px] bottom-[-3px] w-[2px] rounded-full" style={{ left: `${(META_SERIES / maxBarra) * 100}%`, background: c.muted, opacity: 0.6 }} />
+                </div>
+                <span className="text-sm font-bold text-right" style={{ color: v ? c.ink : c.muted }}>{fmtNum(v)}</span>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      <section className="rounded-3xl p-4" style={{ background: c.surface, boxShadow: c.sombra }}>
+        <div className="flex items-baseline justify-between mb-3">
+          <span className="font-bold">Séries por semana</span>
+          <span className="text-xs" style={{ color: c.muted }}>últimas 8 semanas</span>
+        </div>
+        <div style={{ height: 150 }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={semanas} margin={{ top: 16, right: 0, bottom: 0, left: 0 }}>
+              <XAxis dataKey="rotulo" tick={{ fill: c.muted, fontSize: 10 }} tickLine={false} axisLine={false} interval={0} />
+              <Bar dataKey="series" radius={[6, 6, 6, 6]} label={{ position: "top", fill: c.muted, fontSize: 11, fontWeight: 700 }}>
+                {semanas.map((s) => <Cell key={s.ini} fill={c.accent} fillOpacity={s.atual ? 1 : 0.4} />)}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </section>
+    </>
+  );
+}
+
+/* ---------- Treinos: lista de sessões, toca para ver as séries */
+function HistTreinos({ c, series }) {
+  const [aberto, setAberto] = useState(null);
+  const [limite, setLimite] = useState(12);
+  const sessoes = useMemo(() => {
+    const m = new Map();
+    series.forEach((s) => {
+      const dia = diaLocal(s.data);
+      const k = `${dia}|${s.treino || "?"}`;
+      if (!m.has(k)) m.set(k, { k, dia, treino: s.treino, ex: new Map(), n: 0, volume: 0 });
+      const at = m.get(k);
+      if (!at.ex.has(s.exercicio)) at.ex.set(s.exercicio, []);
+      at.ex.get(s.exercicio).push(s);
+      at.n += 1;
+      at.volume += (Number(s.carga) || 0) * (Number(s.reps) || 0);
+    });
+    return [...m.values()].sort((a, b) => b.dia.localeCompare(a.dia));
+  }, [series]);
+
+  return (
+    <div className="space-y-2.5">
+      {sessoes.slice(0, limite).map((ss) => {
+        const exs = [...ss.ex.entries()];
+        const ab = aberto === ss.k;
+        return (
+          <section key={ss.k} className="rounded-3xl overflow-hidden" style={{ background: c.surface, boxShadow: c.sombra }}>
+            <button type="button" onClick={() => setAberto(ab ? null : ss.k)} className="w-full flex items-center gap-3 px-4 py-3.5 text-left">
+              <div className="w-11 h-11 rounded-xl flex flex-col items-center justify-center shrink-0" style={{ background: c.surface2 }}>
+                <span className="text-[10px] font-bold uppercase leading-none" style={{ color: c.muted }}>{DIA_CURTO[dowDe(ss.dia)]}</span>
+                <span className="text-base font-extrabold leading-tight">{ss.dia.slice(8, 10)}</span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="font-bold text-[15px]">Treino {ss.treino || "—"} <span className="font-medium text-sm" style={{ color: c.muted }}>· {dataBR(ss.dia).slice(0, 5)}</span></div>
+                <div className="text-xs truncate" style={{ color: c.muted }}>
+                  {exs.length} exercícios · {ss.n} séries{ss.volume ? ` · ${fmtNum(ss.volume / 1000)} t` : ""}
+                </div>
+              </div>
+              <ChevronDown size={18} style={{ color: c.muted, transform: ab ? "rotate(180deg)" : "none", transition: "transform .15s" }} />
+            </button>
+            {ab && (
+              <div className="px-4 pb-3.5 space-y-2.5" style={{ borderTop: `1px solid ${c.line}` }}>
+                {exs.map(([nome, ls]) => (
+                  <div key={nome} className="pt-2.5">
+                    <div className="text-sm font-semibold">{nome}</div>
+                    <div className="flex flex-wrap gap-1.5 mt-1">
+                      {ls.map((s, i) => (
+                        <span key={s.id || i} className="px-2 py-0.5 rounded-lg text-xs font-bold" style={{ background: c.surface2 }}>
+                          {fmtKg(s.carga)} × {s.reps}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+        );
+      })}
+      {sessoes.length > limite && (
+        <button type="button" onClick={() => setLimite((l) => l + 12)} className="w-full py-3 rounded-2xl text-sm font-semibold"
+          style={{ background: c.surface2, color: c.ink }}>Ver treinos mais antigos</button>
+      )}
+    </div>
+  );
+}
+
+/* ---------- Exercícios: evolução de um exercício */
 const COLS_HIST = "1.1fr 1fr .9fr .8fr 1.1fr";
 
-function TelaHistorico({ c, series }) {
-  const exercicios = useMemo(() => [...new Set(series.map((s) => s.exercicio))].sort(), [series]);
+function HistExercicios({ c, series, treinos }) {
+  /* do programa atual primeiro (na ordem dos treinos), depois os antigos */
+  const exercicios = useMemo(() => {
+    const feitos = new Set(series.map((s) => s.exercicio));
+    const doPrograma = [...new Set(treinos.flatMap((t) => t.exercicios.map((e) => e.nome)))].filter((n) => feitos.has(n));
+    const antigos = [...feitos].filter((n) => !doPrograma.includes(n)).sort();
+    return [...doPrograma, ...antigos];
+  }, [series, treinos]);
   const [sel, setSel] = useState("");
   const [metrica, setMetrica] = useState("carga"); // carga | volume
   const chipsRef = useRef(null);
@@ -2080,43 +2432,40 @@ function TelaHistorico({ c, series }) {
     return [...m.values()].sort((a, b) => a.data.localeCompare(b.data));
   }, [series, sel]);
 
-  if (!series.length) return <Vazio c={c} texto="Seu histórico aparece aqui depois da primeira série registrada." />;
-
   const grafico = porDia.map((d) => ({ ...d, rotulo: dataBR(d.data).slice(0, 5) }));
   const ultimos5 = [...porDia].reverse().slice(0, 5);
   const val = (d) => (metrica === "carga" ? d.carga : Math.round(d.volume));
   const unidade = metrica === "carga" ? "kg" : "kg·rep";
   const delta = grafico.length > 1 ? val(grafico.at(-1)) - val(grafico[0]) : 0;
+  const musc = sel ? musculosDe(sel) : { p: [], s: [] };
 
   return (
-    <div className="px-4 space-y-4">
-      <div ref={chipsRef} className="relative flex gap-2 overflow-x-auto sem-barra pb-1 -mx-4 px-4">
+    <>
+      <div ref={chipsRef} className="relative flex gap-2 overflow-x-auto sem-barra -mx-4 px-4 pb-1">
         {exercicios.map((e) => (
-          <button type="button" key={e} onClick={() => setSel(e)}
-            data-ativo={e === sel ? "1" : undefined}
-            className="shrink-0 px-3 py-2 rounded-full text-sm whitespace-nowrap"
-            style={{
-              background: e === sel ? c.accent : c.surface, color: e === sel ? c.accentInk : c.ink,
-              border: `1px solid ${e === sel ? c.accent : c.line}`,
-            }}>{e}</button>
+          <button type="button" key={e} onClick={() => setSel(e)} data-ativo={e === sel ? "1" : undefined}
+            className="shrink-0 px-3 py-2 rounded-full text-[13px] font-semibold whitespace-nowrap"
+            style={{ background: e === sel ? c.accent : c.surface, color: e === sel ? c.accentInk : c.ink, boxShadow: e === sel ? "none" : c.sombra }}>
+            {e}
+          </button>
         ))}
       </div>
 
-      <div className="p-4 rounded-2xl" style={{ background: c.surface, boxShadow: c.sombra }}>
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex rounded-lg overflow-hidden" style={{ border: `1px solid ${c.line}` }}>
-            {["carga", "volume"].map((m) => (
-              <button key={m} type="button" onClick={() => setMetrica(m)}
-                className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wide"
-                style={{ background: metrica === m ? c.accent : "transparent", color: metrica === m ? c.accentInk : c.muted, fontFamily: MONO }}>
-                {m === "carga" ? "carga máx" : "volume"}
-              </button>
-            ))}
+      <section className="p-4 rounded-3xl" style={{ background: c.surface, boxShadow: c.sombra }}>
+        <div className="font-bold leading-tight">{sel}</div>
+        {(musc.p.length > 0 || musc.s.length > 0) && (
+          <div className="flex flex-wrap gap-1.5 mt-1.5">
+            {musc.p.map((k) => <span key={k} className="px-2 py-0.5 rounded-full text-[11px] font-semibold" style={{ background: c.accentSoft, color: c.accent }}>{NOME_MUSCULO[k]}</span>)}
+            {musc.s.map((k) => <span key={k} className="px-2 py-0.5 rounded-full text-[11px] font-semibold" style={{ background: c.surface2, color: c.muted }}>{NOME_MUSCULO[k]}</span>)}
           </div>
-          <span className="text-2xl font-bold" style={{ fontFamily: MONO }}>
-            {grafico.length ? `${val(grafico.at(-1))}` : "—"}
+        )}
+        <div className="flex items-center justify-between mt-3 mb-3">
+          <div className="w-44"><Segmentado c={c} valor={metrica} setValor={setMetrica} opcoes={[["carga", "Carga"], ["volume", "Volume"]]} /></div>
+          <span className="text-2xl font-extrabold tracking-tight">
+            {grafico.length ? `${fmtNum(val(grafico.at(-1)))}` : "—"}
+            <span className="text-sm font-bold ml-1" style={{ color: c.muted }}>{unidade}</span>
             {delta !== 0 && (
-              <span className="text-sm ml-2" style={{ color: delta > 0 ? c.ok : c.pr }}>{delta > 0 ? "+" : ""}{delta}</span>
+              <span className="text-sm font-bold ml-2" style={{ color: delta > 0 ? c.ok : c.pr }}>{delta > 0 ? "+" : ""}{fmtNum(delta)}</span>
             )}
           </span>
         </div>
@@ -2124,20 +2473,20 @@ function TelaHistorico({ c, series }) {
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={grafico} margin={{ top: 4, right: 8, bottom: 0, left: -6 }}>
               <CartesianGrid stroke={c.grid} vertical={false} />
-              <XAxis dataKey="rotulo" tick={{ fill: c.muted, fontSize: 11, fontFamily: MONO }} tickLine={false} axisLine={false} />
-              <YAxis tick={{ fill: c.muted, fontSize: 11, fontFamily: MONO }} tickLine={false} axisLine={false} width={46} />
+              <XAxis dataKey="rotulo" tick={{ fill: c.muted, fontSize: 11 }} tickLine={false} axisLine={false} />
+              <YAxis tick={{ fill: c.muted, fontSize: 11 }} tickLine={false} axisLine={false} width={46} />
               <Tooltip
-                contentStyle={{ background: c.surface2, border: `1px solid ${c.line}`, borderRadius: 12, color: c.ink, fontFamily: MONO, fontSize: 12 }}
+                contentStyle={{ background: c.surface2, border: `1px solid ${c.line}`, borderRadius: 12, color: c.ink, fontSize: 12 }}
                 labelStyle={{ color: c.muted }} formatter={(v) => [`${v} ${unidade}`, metrica]} />
               <Line type="monotone" dataKey={metrica === "carga" ? "carga" : "volume"} stroke={c.accent} strokeWidth={2.5}
                 dot={{ r: 3, fill: c.accent, strokeWidth: 0 }} activeDot={{ r: 5 }} />
             </LineChart>
           </ResponsiveContainer>
         </div>
-      </div>
+      </section>
 
-      <div className="rounded-2xl overflow-hidden" style={{ background: c.surface, boxShadow: c.sombra }}>
-        <div className="grid gap-2 px-4 py-2 text-[11px] font-bold uppercase tracking-wide"
+      <section className="rounded-3xl overflow-hidden" style={{ background: c.surface, boxShadow: c.sombra }}>
+        <div className="grid gap-2 px-4 py-2.5 text-[11px] font-bold uppercase tracking-wide"
           style={{ gridTemplateColumns: COLS_HIST, color: c.muted, borderBottom: `1px solid ${c.line}` }}>
           <span>data</span><span className="text-right">kg</span>
           <span className="text-right">séries</span><span className="text-right">reps</span><span className="text-right">volume</span>
@@ -2145,14 +2494,14 @@ function TelaHistorico({ c, series }) {
         {ultimos5.map((d) => (
           <div key={d.data} className="grid gap-2 px-4 py-3 text-sm" style={{ gridTemplateColumns: COLS_HIST }}>
             <span className="font-medium">{dataBR(d.data).slice(0, 5)}</span>
-            <span className="text-right font-semibold">{d.carga}</span>
+            <span className="text-right font-bold">{fmtKg(d.carga)}</span>
             <span className="text-right" style={{ color: c.muted }}>{d.series}</span>
             <span className="text-right" style={{ color: c.muted }}>{d.reps}</span>
             <span className="text-right" style={{ color: c.muted }}>{Math.round(d.volume)}</span>
           </div>
         ))}
-      </div>
-    </div>
+      </section>
+    </>
   );
 }
 
