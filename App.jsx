@@ -6,7 +6,7 @@ import {
   Dumbbell, History, CalendarDays, Play, Check, Plus, Minus,
   ChevronLeft, ChevronRight, Timer, Sun, Moon, X, Flag, Video, Flame, Info,
   Trash2, ArrowRight, MoreVertical, Download, Upload, Pencil, Activity,
-  Scale, BookOpen, Bike, ChevronDown,
+  Scale, BookOpen, Bike, ChevronDown, MoreHorizontal, Smartphone, SkipForward,
 } from "lucide-react";
 
 /* ---------------------------------------------------------------- tokens
@@ -33,21 +33,44 @@ const ANILHAS = [20, 10, 5, 2.5, 2, 1];
 const PLACA_KG = 5;
 const HALTERES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30];
 
+/* v15 — visual novo: fundo neutro, UMA cor de destaque (escolhida em
+   Mais → Aparência), verde só para "feito", Inter em tudo com números
+   tabulares (alinham na coluna). O tema segue o do celular por padrão. */
 const THEMES = {
   light: {
-    bg: "#F4F4F1", surface: "#FFFFFF", surface2: "#EDEDE9", raised: "#FFFFFF", line: "#DCDCD6",
-    ink: "#14161A", muted: "#6B7280", accent: "#1E5BC6", accentInk: "#FFFFFF",
-    pr: "#D42D2D", ok: "#2E9E5B", warn: "#C08A05", grid: "#E4E4DE", biset: "#7C4DDB",
+    bg: "#F2F2F5", surface: "#FFFFFF", surface2: "#EEEFF2", raised: "#FFFFFF", line: "#E3E4E8",
+    ink: "#111215", muted: "#6B6F78", accent: "#EA580C", accentInk: "#FFFFFF",
+    pr: "#DC2626", ok: "#16A34A", warn: "#B7791F", grid: "#E6E7EB", biset: "#7C4DDB",
+    sombra: "0 1px 2px rgba(16,18,24,.06), 0 8px 24px -12px rgba(16,18,24,.12)",
   },
   dark: {
-    bg: "#0E1013", surface: "#181B20", surface2: "#22262C", raised: "#1E242C", line: "#2C313A",
-    ink: "#F2F3F5", muted: "#8A929E", accent: "#4C86F5", accentInk: "#0B0D10",
-    pr: "#F05454", ok: "#4ECB79", warn: "#E8B417", grid: "#262B33", biset: "#A47EF5",
+    bg: "#0B0C0E", surface: "#16181C", surface2: "#202329", raised: "#1B1E23", line: "#2A2E35",
+    ink: "#F5F6F7", muted: "#8E949E", accent: "#FF6A1A", accentInk: "#170A02",
+    pr: "#F05252", ok: "#3FCF74", warn: "#E8B417", grid: "#24282F", biset: "#A47EF5",
+    sombra: "none",
   },
 };
 
-const MONO = '"IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace';
-const SANS = '"IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif';
+/* Cores de destaque. O que a pesquisa sustenta (efeito pequeno e de curto
+   prazo): vermelho aumenta a ativação e, em alguns estudos, a força/
+   velocidade em esforços curtos (Elliot & Aarts 2011; Payen et al. 2011;
+   Hill & Barton 2005 no esporte de combate). Laranja pega parte dessa
+   energia sem cara de "erro". Volt (verde-limão) é a cor que o olho mais
+   enxerga — destaque máximo na tela escura. Azul acalma (era a cor antiga). */
+const CORES_DESTAQUE = {
+  laranja: { nome: "Laranja", porque: "energia, sem cara de erro",
+    dark: { accent: "#FF6A1A", accentInk: "#170A02" }, light: { accent: "#EA580C", accentInk: "#FFFFFF" } },
+  vermelho: { nome: "Vermelho", porque: "mais ativação e força",
+    dark: { accent: "#FF4545", accentInk: "#1A0404" }, light: { accent: "#DC2626", accentInk: "#FFFFFF" } },
+  volt: { nome: "Volt", porque: "o que mais salta aos olhos",
+    dark: { accent: "#C8F031", accentInk: "#11160A" }, light: { accent: "#4D7C0F", accentInk: "#FFFFFF" } },
+  azul: { nome: "Azul", porque: "calma e foco (a cor antiga)",
+    dark: { accent: "#4C86F5", accentInk: "#0B0D10" }, light: { accent: "#1E5BC6", accentInk: "#FFFFFF" } },
+};
+const VERSAO_APP = 15;
+
+const SANS = '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+const MONO = SANS; /* números: Inter com algarismos tabulares (ver useFonte) */
 const STORE_KEY = "treino:v2";
 
 /* --------------------------------------------------- persistência robusta
@@ -473,7 +496,8 @@ function chave(texto) {
     .replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
 
-const nomeCurto = (n) => n.split(" ").slice(0, 2).join(" ");
+/* "Voador (Peck Deck)" → "Voador"; "Crucifixo Invertido na Polia" → "Crucifixo Invertido" */
+const nomeCurto = (n) => (n.replace(/\s*\(.*?\)/g, "").trim() || n).split(" ").slice(0, 2).join(" ");
 
 /* faixa de reps a partir do texto do programa: "8-10" -> [8,10];
    "12" -> [12,12]; "60s" / "10-12 cada perna" -> tenta o par, senão null */
@@ -629,23 +653,44 @@ function semear() {
   return linhas;
 }
 
-/* injeta IBM Plex uma vez */
-function useFontePlex() {
+/* injeta Inter uma vez + números tabulares e toque limpo no celular */
+function useFonte() {
   useEffect(() => {
-    if (document.getElementById("plex-font")) return;
+    if (document.getElementById("zizu-font")) return;
     const l = document.createElement("link");
-    l.id = "plex-font";
+    l.id = "zizu-font";
     l.rel = "stylesheet";
-    l.href = "https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap";
+    l.href = "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap";
     document.head.appendChild(l);
+    const st = document.createElement("style");
+    st.textContent = `body{font-feature-settings:"tnum" 1,"cv11" 1;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+      button,input{-webkit-tap-highlight-color:transparent}
+      .sem-barra::-webkit-scrollbar{display:none}.sem-barra{scrollbar-width:none}`;
+    document.head.appendChild(st);
   }, []);
+}
+
+/* tema do celular (prefers-color-scheme), acompanhando quando ele muda */
+function useSistemaEscuro() {
+  const q = () => !window.matchMedia?.("(prefers-color-scheme: light)").matches;
+  const [escuro, setEscuro] = useState(q);
+  useEffect(() => {
+    const m = window.matchMedia?.("(prefers-color-scheme: dark)");
+    if (!m) return;
+    const on = () => setEscuro(m.matches);
+    m.addEventListener ? m.addEventListener("change", on) : m.addListener(on);
+    return () => (m.removeEventListener ? m.removeEventListener("change", on) : m.removeListener(on));
+  }, []);
+  return escuro;
 }
 
 /* ---------------------------------------------------------------- app */
 
 export default function AppTreino() {
-  useFontePlex();
-  const [tema, setTema] = useState("dark");
+  useFonte();
+  const sistemaEscuro = useSistemaEscuro();
+  const [modoTema, setModoTema] = useState("auto"); // auto (segue o celular) | light | dark
+  const [corDestaque, setCorDestaque] = useState("laranja");
   const [aba, setAba] = useState("treinos");
   const [carregando, setCarregando] = useState(true);
   const [treinos, setTreinos] = useState(TREINOS_PADRAO);
@@ -658,11 +703,22 @@ export default function AppTreino() {
   const [sessao, setSessao] = useState(null); // { treino, exercicio, inicio }
   const [aviso, setAviso] = useState(null);
   const [treinoFinalizado, setTreinoFinalizado] = useState(null);
-  const [abrirCardio, setAbrirCardio] = useState(false);
-  useEffect(() => { if (aba !== "treinos") setAbrirCardio(false); }, [aba]);
   const importInput = useRef(null);
 
-  const c = THEMES[tema];
+  const tema = modoTema === "auto" ? (sistemaEscuro ? "dark" : "light") : modoTema;
+  const c = useMemo(() => {
+    const cor = (CORES_DESTAQUE[corDestaque] || CORES_DESTAQUE.laranja)[tema];
+    return { ...THEMES[tema], ...cor, accentSoft: `${cor.accent}22` };
+  }, [tema, corDestaque]);
+
+  /* fundo da página + barra do navegador acompanham o tema */
+  useEffect(() => {
+    document.body.style.background = c.bg;
+    document.documentElement.style.colorScheme = tema;
+    let m = document.querySelector('meta[name="theme-color"]');
+    if (!m) { m = document.createElement("meta"); m.name = "theme-color"; document.head.appendChild(m); }
+    m.content = c.bg;
+  }, [c.bg, tema]);
 
   const mostrarAviso = useCallback((txt, ms = 4000) => {
     setAviso(txt);
@@ -681,8 +737,9 @@ export default function AppTreino() {
         setCardios(d.cardios || []);
         if (d.migrou) mostrarAviso("Programa novo carregado — seu histórico foi mantido.", 6000);
         setDescanso(d.descanso ?? 90);
-        if (d.tema) setTema(d.tema);
-        else if (window.matchMedia?.("(prefers-color-scheme: light)").matches) setTema("light");
+        /* v15: o tema antigo (claro/escuro fixo) é ignorado — agora segue o celular */
+        if (d.modoTema) setModoTema(d.modoTema);
+        if (d.corDestaque && CORES_DESTAQUE[d.corDestaque]) setCorDestaque(d.corDestaque);
 
         let seriesCarregadas = d.series || [];
         let conclusoesCarregadas = d.conclusoes || [];
@@ -725,7 +782,6 @@ export default function AppTreino() {
         setSeries(semear());
         setMarcos([...MARCOS_IMPORTADOS, ...MARCOS_PROGRAMA]);
         mostrarAviso("Primeira vez neste aparelho: toque em ⋮ → Importar backup para trazer seu histórico.", 8000);
-        if (window.matchMedia?.("(prefers-color-scheme: light)").matches) setTema("light");
       }
       setCarregando(false);
     })();
@@ -815,14 +871,14 @@ export default function AppTreino() {
   const salvar = useCallback(async () => {
     const ok = await gravarBruto({
       programaVersao: PROGRAMA_VERSAO,
-      treinos, series, marcos, conclusoes, pesos, cardios, descanso, sessao, tema,
+      treinos, series, marcos, conclusoes, pesos, cardios, descanso, sessao, modoTema, corDestaque,
       fimEm, pausadoEm, totalDescanso,
     });
     setSemPersistencia(!ok);
     if (ok) setUltimoSalvo(Date.now());
-  }, [treinos, series, marcos, conclusoes, pesos, cardios, descanso, sessao, tema, fimEm, pausadoEm, totalDescanso]);
+  }, [treinos, series, marcos, conclusoes, pesos, cardios, descanso, sessao, modoTema, corDestaque, fimEm, pausadoEm, totalDescanso]);
 
-  useEffect(() => { if (!carregando) salvar(); }, [series, marcos, conclusoes, pesos, cardios, descanso, sessao, tema, treinos, fimEm, pausadoEm, carregando]); // eslint-disable-line
+  useEffect(() => { if (!carregando) salvar(); }, [series, marcos, conclusoes, pesos, cardios, descanso, sessao, modoTema, corDestaque, treinos, fimEm, pausadoEm, carregando]); // eslint-disable-line
 
   const registrarCardio = ({ tipo, minutos }) => {
     setCardios((a) => [...a, { id: uid(), data: hoje(), tipo, minutos }]);
@@ -954,13 +1010,13 @@ export default function AppTreino() {
     try {
       const payload = JSON.stringify({
         v: 8, programaVersao: PROGRAMA_VERSAO, exportado: new Date().toISOString(),
-        treinos, series, marcos, conclusoes, pesos, cardios, descanso, tema,
+        treinos, series, marcos, conclusoes, pesos, cardios, descanso, modoTema, corDestaque,
       }, null, 2);
       const blob = new Blob([payload], { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `barra-backup-${hoje()}.json`;
+      a.download = `zizufit-backup-${hoje()}.json`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -986,12 +1042,13 @@ export default function AppTreino() {
         if (d.pesos) setPesos(d.pesos);
         if (d.cardios) setCardios(d.cardios);
         if (d.descanso != null) setDescanso(d.descanso);
-        if (d.tema) setTema(d.tema);
+        if (d.modoTema) setModoTema(d.modoTema);
+        if (d.corDestaque && CORES_DESTAQUE[d.corDestaque]) setCorDestaque(d.corDestaque);
         mostrarAviso(d.migrou
           ? "Backup importado e programa novo aplicado — histórico mantido."
           : "Backup importado.", 6000);
       } catch {
-        mostrarAviso("Arquivo inválido — esperava um backup .json do Barra.");
+        mostrarAviso("Arquivo inválido — esperava um backup .json do ZizuFIT.");
       }
     };
     fr.readAsText(file);
@@ -1006,34 +1063,36 @@ export default function AppTreino() {
     );
   }
 
+  const emSessao = aba === "sessao" && !!sessao;
+  const timer = fimEm > 0 ? {
+    restante, total: totalDescanso, pausado: !!pausadoEm, acabou: restante <= 0,
+    alternar: alternarDescanso, mais: () => maisDescanso(15), fechar: fecharDescanso,
+  } : null;
+  const TITULOS = { treinos: "Hoje", historico: "Histórico", corpo: "Corpo", mais: "Mais", marcos: "Marcos", guia: "Guia" };
+
   return (
     <div style={{ background: c.bg, color: c.ink, fontFamily: SANS, minHeight: "100dvh" }}>
       <input ref={importInput} type="file" accept="application/json,.json" hidden
         onChange={(e) => { importarDados(e.target.files?.[0]); e.target.value = ""; }} />
 
-      <div className="max-w-md mx-auto pb-40">
-        <Topo c={c} tema={tema} setTema={setTema} sessao={sessao} progresso={progressoSemanal}
-          ultimoSalvo={ultimoSalvo}
-          onExportar={exportarDados} onImportar={() => importInput.current?.click()} />
+      <div className={`max-w-md mx-auto ${emSessao ? "pb-64" : "pb-40"}`}>
+        {!emSessao && (
+          <Topo c={c} titulo={TITULOS[aba] || "Hoje"} progresso={progressoSemanal}
+            voltar={aba === "marcos" || aba === "guia" ? () => setAba("mais") : null} />
+        )}
 
         {semPersistencia && (
           <div className="mx-4 mb-3 px-3 py-2.5 rounded-xl text-sm font-medium" style={{ background: c.pr, color: "#fff" }}>
-            Não estou conseguindo salvar neste dispositivo. Toque no menu ⋮ →{" "}
+            Não estou conseguindo salvar neste dispositivo. Vá em Mais →{" "}
             <b>Exportar backup</b> agora e evite recarregar a página.
           </div>
-        )}
-
-        {aviso && (
-          <div className="mx-4 mb-3 px-3 py-2 rounded-xl text-sm" style={{ background: c.surface2 }}>{aviso}</div>
         )}
 
         {aba === "treinos" && (
           <TelaTreinos c={c} treinos={treinos} ultimaVez={ultimaVez} sessao={sessao}
             progresso={progressoSemanal} iniciar={iniciarTreino} continuar={() => setAba("sessao")}
             toggleHandebol={toggleHandebol} conclusoes={conclusoes}
-            descanso={descanso} setDescanso={setDescanso}
-            cardios={cardios} registrarCardio={registrarCardio} removerCardio={removerCardio} abrirCardio={abrirCardio}
-            onExportar={exportarDados} onImportar={() => importInput.current?.click()} />
+            cardios={cardios} registrarCardio={registrarCardio} removerCardio={removerCardio} />
         )}
 
         {aba === "sessao" && (
@@ -1041,34 +1100,48 @@ export default function AppTreino() {
             ? <TelaSessao c={c} sessao={sessao} setSessao={setSessao} treinos={treinos}
                 series={series} registrar={registrarSerie} encerrar={encerrarSessao}
                 removerSerie={removerSerie} editarSerie={editarSerie} onExportar={exportarDados}
-                cardios={cardios} registrarCardio={registrarCardio} removerCardio={removerCardio} />
+                cardios={cardios} registrarCardio={registrarCardio} removerCardio={removerCardio}
+                timer={timer} sair={() => setAba("treinos")} />
             : <Vazio c={c} texto="Nenhum treino em andamento." acao="Escolher treino" onAcao={() => setAba("treinos")} />
         )}
 
         {aba === "historico" && <TelaHistorico c={c} series={series} />}
         {aba === "corpo" && <TelaCorpo c={c} pesos={pesos} setPesos={setPesos} />}
+        {aba === "mais" && (
+          <TelaMais c={c} modoTema={modoTema} setModoTema={setModoTema}
+            corDestaque={corDestaque} setCorDestaque={setCorDestaque} tema={tema}
+            descanso={descanso} setDescanso={setDescanso} ultimoSalvo={ultimoSalvo}
+            onExportar={exportarDados} onImportar={() => importInput.current?.click()} abrir={setAba} />
+        )}
         {aba === "marcos" && <TelaMarcos c={c} marcos={marcos} setMarcos={setMarcos} />}
         {aba === "guia" && <TelaGuia c={c} treinos={treinos} />}
       </div>
 
-      {sessao && aba !== "sessao" && (
+      {aviso && (
+        <div className="fixed left-0 right-0 z-50 pointer-events-none" style={{ top: "max(0.75rem, env(safe-area-inset-top))" }}>
+          <div className="max-w-md mx-auto px-4">
+            <div className="px-4 py-3 rounded-2xl text-sm font-medium pointer-events-auto"
+              onClick={() => setAviso(null)}
+              style={{ background: c.ink, color: c.bg, boxShadow: "0 12px 30px -10px rgba(0,0,0,.45)" }}>{aviso}</div>
+          </div>
+        </div>
+      )}
+
+      {sessao && !emSessao && (
         <PilulaSessao c={c} sessao={sessao} onClick={() => setAba("sessao")} />
       )}
 
-      {fimEm > 0 && (
-        <BarraTimer c={c} restante={restante} total={totalDescanso}
-          pausado={!!pausadoEm} acabou={restante <= 0}
-          alternar={alternarDescanso} mais={() => maisDescanso(15)} fechar={fecharDescanso}
-          comPilula={!!sessao && aba !== "sessao"} />
+      {timer && !emSessao && (
+        <BarraTimer c={c} {...timer} comPilula={!!sessao} />
       )}
 
       {treinoFinalizado && (
         <ModalFinalizado c={c} info={treinoFinalizado}
-          cardio={() => { setTreinoFinalizado(null); setAbrirCardio(true); setAba("treinos"); }}
+          cardio={() => { setTreinoFinalizado(null); setAba("treinos"); }}
           fechar={() => { setTreinoFinalizado(null); setAba("historico"); }} />
       )}
 
-      <Abas c={c} aba={aba} setAba={setAba} sessao={sessao} />
+      {!emSessao && <Abas c={c} aba={aba} setAba={setAba} />}
     </div>
   );
 }
@@ -1089,58 +1162,31 @@ function AnelSemana({ c, feitos, meta, size = 20, stroke = 3 }) {
   );
 }
 
-function Topo({ c, tema, setTema, sessao, progresso, ultimoSalvo, onExportar, onImportar }) {
-  const [menu, setMenu] = useState(false);
-  const salvoTxt = ultimoSalvo
-    ? (() => {
-        const s = Math.round((Date.now() - ultimoSalvo) / 1000);
-        return s < 5 ? "salvo agora" : s < 60 ? `salvo há ${s}s` : `salvo às ${new Date(ultimoSalvo).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`;
-      })()
-    : "ainda não salvo";
-  return (
-    <header className="flex items-end justify-between px-4 pb-4 relative"
-      style={{ paddingTop: "max(1.5rem, env(safe-area-inset-top))" }}>
-      <div>
-        <div className="text-xs uppercase tracking-widest" style={{ color: c.muted, fontFamily: MONO }}>
-          {sessao ? `treino ${sessao.treino} em andamento` : "diário de treino · breno"}
-        </div>
-        <h1 className="text-3xl font-bold tracking-tight leading-none mt-1">Barra</h1>
-      </div>
-      <div className="flex items-center gap-2">
-        <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full" style={{ background: c.surface2 }}>
-          <AnelSemana c={c} feitos={progresso.feitos} meta={progresso.meta} />
-          <span className="text-xs font-semibold" style={{ fontFamily: MONO }}>{progresso.feitos}/{progresso.meta}</span>
-        </div>
-        <button type="button" onClick={() => setTema(tema === "dark" ? "light" : "dark")}
-          className="p-2 rounded-full" style={{ background: c.surface2, color: c.ink }} aria-label="Alternar tema">
-          {tema === "dark" ? <Sun size={18} /> : <Moon size={18} />}
-        </button>
-        <button type="button" onClick={() => setMenu((m) => !m)}
-          className="p-2 rounded-full" style={{ background: c.surface2, color: c.ink }} aria-label="Mais opções">
-          <MoreVertical size={18} />
-        </button>
-      </div>
+const MESES = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
 
-      {menu && (
-        <>
-          <div className="fixed inset-0 z-30" onClick={() => setMenu(false)} />
-          <div className="absolute right-4 top-full z-40 w-52 rounded-xl overflow-hidden"
-            style={{ background: c.surface, border: `1px solid ${c.line}`, boxShadow: "0 12px 30px -10px rgba(0,0,0,.4)" }}>
-            <button type="button" onClick={() => { setMenu(false); onExportar(); }}
-              className="w-full flex items-center gap-2.5 px-3 py-3 text-sm text-left" style={{ color: c.ink }}>
-              <Download size={16} /> Exportar backup
-            </button>
-            <button type="button" onClick={() => { setMenu(false); onImportar(); }}
-              className="w-full flex items-center gap-2.5 px-3 py-3 text-sm text-left"
-              style={{ color: c.ink, borderTop: `1px solid ${c.line}` }}>
-              <Upload size={16} /> Importar backup
-            </button>
-            <div className="px-3 py-2 text-[11px]" style={{ color: c.muted, borderTop: `1px solid ${c.line}`, fontFamily: MONO }}>
-              {salvoTxt}
-            </div>
+function Topo({ c, titulo, progresso, voltar }) {
+  const agora = new Date();
+  const dataTxt = `${NOME_DIA[agora.getDay()]}, ${agora.getDate()} ${MESES[agora.getMonth()]}`;
+  return (
+    <header className="flex items-end justify-between px-4 pb-4"
+      style={{ paddingTop: "max(1.25rem, env(safe-area-inset-top))" }}>
+      <div className="min-w-0">
+        {voltar ? (
+          <button type="button" onClick={voltar} className="flex items-center gap-0.5 -ml-1 text-sm font-semibold" style={{ color: c.accent }}>
+            <ChevronLeft size={18} /> Mais
+          </button>
+        ) : (
+          <div className="text-[13px] font-semibold" style={{ color: c.muted }}>
+            <span style={{ color: c.accent }}>ZizuFIT</span> · {dataTxt}
           </div>
-        </>
-      )}
+        )}
+        <h1 className="text-[32px] font-extrabold tracking-tight leading-none mt-1.5">{titulo}</h1>
+      </div>
+      <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full shrink-0" style={{ background: c.surface2 }}
+        title="Dias treinados na semana (seg–sex)">
+        <AnelSemana c={c} feitos={progresso.feitos} meta={progresso.meta} />
+        <span className="text-xs font-bold">{progresso.feitos}/{progresso.meta}</span>
+      </div>
     </header>
   );
 }
@@ -1150,16 +1196,44 @@ function Selo({ c, status }) {
   if (!s) return null;
   const cor = c[s.cor] || c.muted;
   return (
-    <span className="px-2 py-0.5 rounded-full text-[10px] uppercase tracking-wide inline-flex items-center gap-1"
-      style={{ color: cor, border: `1px solid ${cor}`, fontFamily: MONO }}>
+    <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold inline-flex items-center gap-1"
+      style={{ color: cor, background: `${cor}1F` }}>
       {status === "atencao" && "⚠"} {s.label}
     </span>
   );
 }
 
+/* aviso de uma linha; toca para ler inteiro */
+function Aviso({ c, texto, cor, icone: Icone = Info }) {
+  const [aberto, setAberto] = useState(false);
+  return (
+    <button type="button" onClick={() => setAberto((a) => !a)}
+      className="w-full flex items-start gap-2.5 px-3.5 py-2.5 rounded-2xl text-left text-sm"
+      style={{ background: c.surface2 }}>
+      <Icone size={16} style={{ color: cor || c.muted, flexShrink: 0, marginTop: 2 }} />
+      <span className={`flex-1 min-w-0 ${aberto ? "" : "truncate"}`}>{texto}</span>
+      <ChevronDown size={16} style={{ color: c.muted, flexShrink: 0, marginTop: 2, transform: aberto ? "rotate(180deg)" : "none" }} />
+    </button>
+  );
+}
+
+/* botão redondo só com ícone */
+function BotaoIcone({ c, icone: Icone, onClick, ativo, rotulo, size = 18 }) {
+  return (
+    <button type="button" onClick={onClick} aria-label={rotulo} title={rotulo}
+      className="w-9 h-9 rounded-full flex items-center justify-center shrink-0"
+      style={{ background: ativo ? c.accentSoft : c.surface2, color: ativo ? c.accent : c.ink }}>
+      <Icone size={size} />
+    </button>
+  );
+}
+
+const INICIAL_DIA = { 1: "S", 2: "T", 3: "Q", 4: "Q", 5: "S", 6: "S", 0: "D" };
+const subtituloTreino = (t) => t.nome.split("·").slice(1).join("·").trim() || t.nome;
+
 /* ------------------------------------------------------------ tela 1 */
 
-function TelaTreinos({ c, treinos, ultimaVez, iniciar, sessao, continuar, progresso, toggleHandebol, conclusoes, descanso, setDescanso, cardios, registrarCardio, removerCardio, abrirCardio, onExportar, onImportar }) {
+function TelaTreinos({ c, treinos, ultimaVez, iniciar, sessao, continuar, progresso, toggleHandebol, conclusoes, cardios, registrarCardio, removerCardio }) {
   const treinoDeHoje = treinoDoDia(treinos, progresso.treinosFeitos);
   /* fim de semana é opcional: só lembra, sem cobrar, se faltou um essencial */
   const dowHoje = dowDe(hoje());
@@ -1172,210 +1246,279 @@ function TelaTreinos({ c, treinos, ultimaVez, iniciar, sessao, continuar, progre
   const diaDeHandebol = ehDiaDeHandebol();
   const especial = semanaEspecial();
   const handebolHoje = conclusoes.some((x) => x.data === hoje() && x.treino === "handebol");
-  const [ajustes, setAjustes] = useState(false);
+
+  const avisos = [
+    hoje() < RETORNO.inicio && { cor: c.accent, icone: CalendarDays, txt: `O programa novo começa na segunda, ${dataBR(RETORNO.inicio).slice(0, 5)}, com a semana de retorno (~90% das cargas).` },
+    naSemanaDeRetorno() && { cor: c.warn, icone: Info, txt: RETORNO.txt },
+    especial?.nota && { cor: c.accent, icone: CalendarDays, txt: especial.nota },
+  ].filter(Boolean);
+
+  const t = treinoDeHoje;
+  const feitoHoje = t && progresso.treinosFeitos.has(t.id);
+  const tag = t ? (t.opcional ? "opcional" : t.extra ? "extra" : "essencial") : null;
+  const sessaoDeOutro = sessao && t && sessao.treino !== t.id;
 
   return (
-    <div className="px-4 space-y-3">
-      {hoje() < RETORNO.inicio && (
-        <div className="px-4 py-3 rounded-2xl text-sm flex gap-2.5" style={{ background: c.surface, border: `1px solid ${c.accent}` }}>
-          <CalendarDays size={17} style={{ color: c.accent, flexShrink: 0, marginTop: 1 }} />
-          <span>O programa novo começa na <b>segunda, {dataBR(RETORNO.inicio).slice(0, 5)}</b>, com a semana de retorno (~90% das cargas). Até lá, descanse e aproveite.</span>
-        </div>
-      )}
-      {naSemanaDeRetorno() && (
-        <div className="px-4 py-3 rounded-2xl text-sm flex gap-2.5" style={{ background: c.surface, border: `1px solid ${c.warn}` }}>
-          <Info size={17} style={{ color: c.warn, flexShrink: 0, marginTop: 1 }} />
-          <span>{RETORNO.txt}</span>
-        </div>
-      )}
-      {especial?.nota && (
-        <div className="px-4 py-3 rounded-2xl text-sm flex gap-2.5" style={{ background: c.surface, border: `1px solid ${c.accent}` }}>
-          <CalendarDays size={17} style={{ color: c.accent, flexShrink: 0, marginTop: 1 }} />
-          <span>{especial.nota}</span>
-        </div>
-      )}
+    <div className="px-4 space-y-4">
+      {avisos.map((a, i) => <Aviso key={i} c={c} texto={a.txt} cor={a.cor} icone={a.icone} />)}
 
-      <div className="p-4 rounded-2xl" style={{ background: c.surface, border: `1px solid ${c.line}` }}>
-        <div className="flex items-baseline justify-between mb-2">
-          <span className="text-xs uppercase tracking-widest" style={{ color: c.muted, fontFamily: MONO }}>esta semana</span>
-          <span className="text-sm font-semibold" style={{ fontFamily: MONO }}>
-            <span style={{ color: progresso.essenciaisFeitos >= progresso.essenciaisMeta ? c.ok : c.ink }}>
-              essenciais {progresso.essenciaisFeitos}/{progresso.essenciaisMeta}
-            </span>
-            <span style={{ color: c.muted }}> · {progresso.feitos}/{progresso.meta} dias</span>
+      {/* ---------- herói: o treino de hoje ---------- */}
+      <section className="rounded-3xl overflow-hidden" style={{ background: c.surface, boxShadow: c.sombra }}>
+        <div className="p-5">
+          {t ? (
+            <>
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-bold uppercase tracking-wide" style={{ color: feitoHoje ? c.ok : c.accent }}>
+                  {feitoHoje ? "Feito hoje" : t.opcional ? "Hoje · se tiver vontade" : "Treino de hoje"}
+                </span>
+                <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold"
+                  style={{ background: tag === "essencial" ? c.accentSoft : c.surface2, color: tag === "essencial" ? c.accent : c.muted }}>
+                  {tag}
+                </span>
+              </div>
+              <h2 className="text-[34px] font-extrabold tracking-tight leading-none mt-2">Treino {t.id}</h2>
+              <p className="text-base mt-1.5 leading-snug" style={{ color: c.muted }}>{subtituloTreino(t)}</p>
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-3 text-sm font-medium">
+                <span className="flex items-center gap-1.5"><Dumbbell size={15} style={{ color: c.muted }} /> {t.exercicios.length} exercícios</span>
+                {t.duracao && <span className="flex items-center gap-1.5"><Timer size={15} style={{ color: c.muted }} /> {t.duracao.split("+")[0].trim()}</span>}
+                {diaDeHandebol && <span style={{ color: c.warn }}>handebol {handebol.hora}</span>}
+              </div>
+
+              {sessao && !sessaoDeOutro ? (
+                <button type="button" onClick={continuar}
+                  className="w-full mt-5 py-4 rounded-2xl font-bold text-lg flex items-center justify-center gap-2"
+                  style={{ background: c.accent, color: c.accentInk }}>
+                  Continuar treino <ArrowRight size={20} />
+                </button>
+              ) : feitoHoje ? (
+                <div className="w-full mt-5 py-3.5 rounded-2xl font-semibold flex items-center justify-center gap-2"
+                  style={{ background: `${c.ok}1F`, color: c.ok }}>
+                  <Check size={20} /> Treino {t.id} concluído
+                </div>
+              ) : (
+                <button type="button" onClick={() => iniciar(t)}
+                  className="w-full mt-5 py-4 rounded-2xl font-bold text-lg flex items-center justify-center gap-2"
+                  style={{ background: t.opcional ? c.surface2 : c.accent, color: t.opcional ? c.ink : c.accentInk }}>
+                  <Play size={20} fill="currentColor" /> Começar treino
+                </button>
+              )}
+              {faltou && !feitoHoje && (
+                <button type="button" onClick={() => iniciar(faltou)} className="w-full mt-2 py-2 text-sm font-medium" style={{ color: c.muted }}>
+                  O {faltou.id} não saiu esta semana — <u style={{ color: c.ink }}>fazer o {faltou.id} hoje</u>
+                </button>
+              )}
+            </>
+          ) : (
+            <>
+              <span className="text-xs font-bold uppercase tracking-wide" style={{ color: diaDeHandebol ? c.warn : c.muted }}>Hoje</span>
+              <h2 className="text-[30px] font-extrabold tracking-tight leading-none mt-2">{diaDeHandebol ? "Handebol" : "Dia livre"}</h2>
+              <p className="text-base mt-1.5" style={{ color: c.muted }}>
+                {diaDeHandebol ? `Sem academia · jogo às ${handebol.hora}` : "Sem treino marcado. Descanse ou escolha um abaixo."}
+              </p>
+            </>
+          )}
+        </div>
+        <CardCardio c={c} cardios={cardios} registrar={registrarCardio} remover={removerCardio} embutido />
+      </section>
+
+      {/* ---------- semana ---------- */}
+      <section className="rounded-3xl p-4" style={{ background: c.surface, boxShadow: c.sombra }}>
+        <div className="flex items-baseline justify-between mb-3">
+          <span className="font-bold">Semana</span>
+          <span className="text-sm" style={{ color: c.muted }}>
+            <b style={{ color: progresso.essenciaisFeitos >= progresso.essenciaisMeta ? c.ok : c.ink }}>{progresso.essenciaisFeitos}/{progresso.essenciaisMeta}</b> essenciais
           </span>
         </div>
-        <div className="flex gap-1.5">
+        <div className="grid grid-cols-7 gap-1">
           {[1, 2, 3, 4, 5, 6, 0].map((dow, i) => {
             const iso = addDias(progresso.inicio, i);
-            const t = treinos.find((x) => DOW[x.dia] === dow);
+            const tr = treinos.find((x) => DOW[x.dia] === dow);
             const f = progresso.dias.has(iso);
             const ehHoje = iso === hoje();
-            const essencial = t && !t.extra;
+            const essencial = tr && !tr.extra;
             const hb = handebolDaSemana(iso).dias.includes(dow);
             const opc = dow === 6 || dow === 0;
             return (
-              <div key={dow} className="flex-1 flex flex-col items-center gap-1" style={{ opacity: opc && !f ? 0.45 : 1 }}>
-                <div className="w-full rounded-full"
-                  style={{ height: essencial ? 8 : 5, marginTop: essencial ? 0 : 3, background: f ? c.ok : c.surface2,
-                    outline: ehHoje ? `1.5px solid ${c.accent}` : "none", outlineOffset: 1 }} />
-                <span className="text-[10px] leading-none" style={{ color: f ? c.ok : ehHoje ? c.ink : c.muted, fontFamily: MONO, fontWeight: essencial ? 700 : 400 }}>
-                  {NOME_DIA[dow].slice(0, 3)}
-                </span>
-                <span className="text-[9px] leading-none" style={{ color: c.muted, fontFamily: MONO }}>
-                  {opc ? "opc" : t?.id || "–"}{hb ? <span style={{ color: c.warn }}>·H</span> : ""}
-                </span>
+              <div key={dow} className="flex flex-col items-center gap-1.5">
+                <span className="text-[11px] font-semibold" style={{ color: ehHoje ? c.accent : c.muted }}>{INICIAL_DIA[dow]}</span>
+                <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold"
+                  style={{
+                    background: f ? c.ok : ehHoje ? c.accentSoft : "transparent",
+                    color: f ? "#fff" : ehHoje ? c.accent : essencial ? c.ink : c.muted,
+                    border: f ? "none" : ehHoje ? `2px solid ${c.accent}` : `1.5px ${opc ? "dashed" : "solid"} ${c.line}`,
+                  }}>
+                  {f ? <Check size={16} strokeWidth={3} /> : (opc ? "·" : tr?.id || "–")}
+                </div>
+                <span className="w-1 h-1 rounded-full" style={{ background: hb ? c.warn : "transparent" }} title={hb ? "handebol" : undefined} />
               </div>
             );
           })}
         </div>
-      </div>
+      </section>
 
-      {treinoDeHoje && (() => {
-        const t = treinoDeHoje;
-        const feito = progresso.treinosFeitos.has(t.id);
-        const tag = t.opcional ? "opcional" : t.extra ? "extra" : "essencial";
-        return (
-          <div className="px-4 py-3 rounded-2xl"
-            style={{ background: c.surface, border: `1px ${t.opcional && !feito ? "dashed" : "solid"} ${feito ? c.ok : t.opcional ? c.line : c.accent}` }}>
-            <div className="flex items-center gap-3">
-              <CalendarDays size={18} style={{ color: feito ? c.ok : t.opcional ? c.muted : c.accent, flexShrink: 0 }} />
-              <div className="flex-1 text-sm min-w-0">
-                <b>{t.opcional ? "Hoje: descanso ou opcional" : `Hoje: treino ${t.id}`}</b>
-                <span className="ml-1.5 px-1.5 py-0.5 rounded text-[10px] uppercase tracking-wide align-middle"
-                  style={{ fontFamily: MONO, background: tag === "essencial" ? c.accent : c.surface2, color: tag === "essencial" ? c.accentInk : c.muted }}>
-                  {tag}
-                </span>
-                <div style={{ color: c.muted }}>
-                  {t.opcional && <>Se tiver vontade: {t.id} · </>}
-                  {t.nome.split("·").slice(1).join("·").trim() || t.nome}
-                  {t.duracao && <span style={{ fontFamily: MONO }}> · {t.duracao}</span>}
-                  {diaDeHandebol && <span style={{ color: c.warn }}> · handebol {handebol.hora}</span>}
-                </div>
-              </div>
-              {feito
-                ? <Check size={18} style={{ color: c.ok, flexShrink: 0 }} />
-                : <button type="button" onClick={() => iniciar(t)}
-                    className="px-3 py-1.5 rounded-lg text-sm font-semibold shrink-0"
-                    style={{ background: t.opcional ? c.surface2 : c.accent, color: t.opcional ? c.ink : c.accentInk }}>Iniciar</button>}
-            </div>
-            {faltou && !feito && (
-              <div className="text-xs mt-2" style={{ color: c.muted }}>
-                O {faltou.id} não saiu esta semana. Se quiser, dá para{" "}
-                <button type="button" onClick={() => iniciar(faltou)} className="underline" style={{ color: c.ink }}>
-                  fazer o {faltou.id} hoje
-                </button>{" "}— sem obrigação.
-              </div>
-            )}
-          </div>
-        );
-      })()}
-
-      <CardCardio c={c} cardios={cardios} registrar={registrarCardio} remover={removerCardio} />
-      {!treinoDeHoje && diaDeHandebol && (
-        <div className="px-4 py-3 rounded-2xl flex items-center gap-3 text-sm"
-          style={{ background: c.surface, border: `1px solid ${c.warn}` }}>
-          <CalendarDays size={18} style={{ color: c.warn, flexShrink: 0 }} />
-          <span><b>Hoje: sem academia</b><span style={{ color: c.warn }}> · handebol {handebol.hora}</span></span>
-        </div>
-      )}
-
-      {sessao && (
-        <button type="button" onClick={continuar}
-          className="w-full flex items-center justify-between px-4 py-3 rounded-2xl"
-          style={{ background: c.accent, color: c.accentInk }}>
-          <span className="font-semibold">Voltar ao treino {sessao.treino}</span>
-          <ChevronRight size={20} />
-        </button>
-      )}
-
-      {[["essenciais", "seg · qua · sex — o que faz o resultado", essenciais], ["extras", "ter · qui — complementam a semana", extras], ["fim de semana", "opcional — só se tiver vontade", opcionais]].map(([titulo, sub, lista]) => (
-        <div key={titulo} className="space-y-2">
-          <div className="flex items-baseline justify-between pt-2 px-1">
-            <span className="text-xs uppercase tracking-widest font-semibold" style={{ color: titulo === "essenciais" ? c.ink : c.muted, fontFamily: MONO }}>{titulo}</span>
-            <span className="text-[11px]" style={{ color: c.muted }}>{sub}</span>
-          </div>
-          {lista.map((t) => {
-            const u = ultimaVez(t.id);
-            const feito = progresso.treinosFeitos.has(t.id);
-            return (
-              <button type="button" key={t.id} onClick={() => iniciar(t)}
-                className="w-full flex items-center gap-4 rounded-2xl text-left"
-                style={{ background: c.surface, border: `1px ${t.extra && !feito ? "dashed" : "solid"} ${feito ? c.ok : c.line}`, padding: t.extra ? "12px 16px" : 16 }}>
-                <div className={`${t.extra ? "w-11 h-11" : "w-14 h-14"} rounded-xl flex flex-col items-center justify-center shrink-0`}
-                  style={{ background: c.surface2 }}>
-                  <span className={t.extra ? "text-base font-bold" : "text-xl font-bold"} style={{ fontFamily: MONO, color: t.extra ? c.muted : c.ink }}>{t.id}</span>
-                  <span className="text-[9px] uppercase" style={{ color: c.muted }}>{diaDoTreino(t)}</span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className={t.extra ? "text-sm font-semibold truncate" : "font-semibold truncate"}>{t.nome}</div>
-                  <div className="text-xs" style={{ color: c.muted }}>
-                    {t.exercicios.length} exercícios{t.duracao ? ` · ${t.duracao}` : ""} · {u ? diasAtras(u) : "sem registro"}
-                  </div>
-                </div>
-                {feito ? <Check size={20} style={{ color: c.ok }} /> : <Play size={t.extra ? 16 : 20} style={{ color: t.extra ? c.muted : c.accent }} />}
-              </button>
-            );
-          })}
-        </div>
-      ))}
-
-      <button type="button" onClick={toggleHandebol}
-        className="w-full flex items-center gap-3 p-4 rounded-2xl text-left"
-        style={{ background: c.surface, border: `1px solid ${handebolHoje ? c.warn : c.line}` }}>
-        <div className="w-14 h-14 rounded-xl flex items-center justify-center shrink-0 text-2xl" style={{ background: c.surface2 }}>🤾</div>
-        <div className="flex-1 min-w-0">
-          <div className="font-semibold">Handebol</div>
-          <div className="text-sm" style={{ color: c.muted }}>
-            {handebolHoje ? "registrado hoje · toque para desfazer" : `${textoHandebol(handebol)} — registre pra fechar a semana`}
-          </div>
-        </div>
-        {handebolHoje ? <Check size={20} style={{ color: c.warn }} /> : <Plus size={20} style={{ color: c.muted }} />}
-      </button>
-
-
-      <div className="rounded-2xl overflow-hidden" style={{ background: c.surface, border: `1px solid ${c.line}` }}>
-        <button type="button" onClick={() => setAjustes((a) => !a)}
-          className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium">
-          <span>Ajustes e dados</span>
-          <ChevronRight size={18} style={{ color: c.muted, transform: ajustes ? "rotate(90deg)" : "none", transition: "transform .15s" }} />
-        </button>
-        {ajustes && (
-          <div className="px-4 pb-4 space-y-3" style={{ borderTop: `1px solid ${c.line}` }}>
-            <div className="pt-3">
-              <div className="text-xs uppercase tracking-widest mb-1" style={{ color: c.muted, fontFamily: MONO }}>descanso padrão</div>
-              <div className="flex items-center gap-2">
-                {[45, 60, 90, 120].map((s) => (
-                  <button key={s} type="button" onClick={() => setDescanso(s)}
-                    className="flex-1 py-2 rounded-xl text-sm font-semibold"
-                    style={{ background: descanso === s ? c.accent : c.surface2, color: descanso === s ? c.accentInk : c.ink, fontFamily: MONO }}>
-                    {mmss(s)}
+      {/* ---------- todos os treinos ---------- */}
+      <div>
+        <div className="px-1 pb-2 text-sm font-bold">Todos os treinos</div>
+        <section className="rounded-3xl overflow-hidden" style={{ background: c.surface, boxShadow: c.sombra }}>
+          {[["Essenciais", essenciais], ["Extras", extras], ["Fim de semana", opcionais]].map(([titulo, lista], gi) => (
+            <div key={titulo}>
+              <div className="px-4 pt-3 pb-1 text-[11px] font-bold uppercase tracking-wide"
+                style={{ color: c.muted, borderTop: gi ? `1px solid ${c.line}` : "none" }}>{titulo}</div>
+              {lista.map((tr) => {
+                const u = ultimaVez(tr.id);
+                const feito = progresso.treinosFeitos.has(tr.id);
+                return (
+                  <button type="button" key={tr.id} onClick={() => (sessao?.treino === tr.id ? continuar() : iniciar(tr))}
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-left">
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-base font-extrabold"
+                      style={{ background: feito ? `${c.ok}1F` : c.surface2, color: feito ? c.ok : tr.extra ? c.muted : c.ink }}>
+                      {tr.id}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[15px] font-semibold truncate">{subtituloTreino(tr)}</div>
+                      <div className="text-xs" style={{ color: c.muted }}>
+                        {diaDoTreino(tr)} · {tr.exercicios.length} exercícios · {u ? diasAtras(u) : "sem registro"}
+                      </div>
+                    </div>
+                    {feito ? <Check size={18} style={{ color: c.ok }} /> : <ChevronRight size={18} style={{ color: c.muted }} />}
                   </button>
-                ))}
+                );
+              })}
+            </div>
+          ))}
+          <button type="button" onClick={toggleHandebol}
+            className="w-full flex items-center gap-3 px-4 py-3 text-left" style={{ borderTop: `1px solid ${c.line}` }}>
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-xl" style={{ background: handebolHoje ? `${c.warn}26` : c.surface2 }}>🤾</div>
+            <div className="flex-1 min-w-0">
+              <div className="text-[15px] font-semibold">Handebol</div>
+              <div className="text-xs truncate" style={{ color: c.muted }}>
+                {handebolHoje ? "registrado hoje · toque para desfazer" : textoHandebol(handebol)}
               </div>
             </div>
-            <div className="flex gap-2">
-              <button type="button" onClick={onExportar}
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium"
-                style={{ background: c.surface2, color: c.ink }}>
-                <Download size={15} /> Exportar
-              </button>
-              <button type="button" onClick={onImportar}
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium"
-                style={{ background: c.surface2, color: c.ink }}>
-                <Upload size={15} /> Importar
-              </button>
-            </div>
-          </div>
-        )}
+            {handebolHoje ? <Check size={18} style={{ color: c.warn }} /> : <Plus size={18} style={{ color: c.muted }} />}
+          </button>
+        </section>
       </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------ mais */
+
+function Grupo({ c, titulo, children, rodape }) {
+  return (
+    <div>
+      {titulo && <div className="px-1 pb-2 text-sm font-bold">{titulo}</div>}
+      <section className="rounded-3xl overflow-hidden" style={{ background: c.surface, boxShadow: c.sombra }}>{children}</section>
+      {rodape && <div className="px-2 pt-2 text-xs" style={{ color: c.muted }}>{rodape}</div>}
+    </div>
+  );
+}
+
+function LinhaMais({ c, icone: Icone, texto, onClick, primeira }) {
+  return (
+    <button type="button" onClick={onClick} className="w-full flex items-center gap-3 px-4 py-3.5 text-left"
+      style={{ borderTop: primeira ? "none" : `1px solid ${c.line}` }}>
+      <Icone size={19} style={{ color: c.accent }} />
+      <span className="flex-1 font-medium">{texto}</span>
+      <ChevronRight size={18} style={{ color: c.muted }} />
+    </button>
+  );
+}
+
+function TelaMais({ c, modoTema, setModoTema, corDestaque, setCorDestaque, tema, descanso, setDescanso, ultimoSalvo, onExportar, onImportar, abrir }) {
+  const [infoCor, setInfoCor] = useState(false);
+  const salvoTxt = ultimoSalvo
+    ? `Salvo neste aparelho às ${new Date(ultimoSalvo).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}.`
+    : "Ainda não salvo.";
+  return (
+    <div className="px-4 space-y-6">
+      <Grupo c={c} titulo="Aparência">
+        <div className="p-4">
+          <div className="text-sm font-semibold mb-2">Tema</div>
+          <div className="grid grid-cols-3 gap-1 p-1 rounded-2xl" style={{ background: c.surface2 }}>
+            {[["auto", "Celular", Smartphone], ["light", "Claro", Sun], ["dark", "Escuro", Moon]].map(([id, nome, Ic]) => (
+              <button key={id} type="button" onClick={() => setModoTema(id)}
+                className="py-2 rounded-xl text-sm font-semibold flex items-center justify-center gap-1.5"
+                style={{ background: modoTema === id ? c.surface : "transparent", color: modoTema === id ? c.ink : c.muted, boxShadow: modoTema === id ? "0 1px 3px rgba(0,0,0,.15)" : "none" }}>
+                <Ic size={15} /> {nome}
+              </button>
+            ))}
+          </div>
+          <div className="flex items-center justify-between mt-5 mb-2">
+            <span className="text-sm font-semibold">Cor de destaque</span>
+            <BotaoIcone c={c} icone={Info} onClick={() => setInfoCor((v) => !v)} ativo={infoCor} rotulo="Por que essas cores" size={16} />
+          </div>
+          {infoCor && (
+            <p className="text-sm mb-3 p-3 rounded-2xl leading-relaxed" style={{ background: c.surface2, color: c.muted }}>
+              O efeito das cores existe, mas é pequeno e dura pouco. O que tem mais estudo é o <b style={{ color: c.ink }}>vermelho</b>:
+              ver vermelho logo antes de um esforço curto aumentou a força e a velocidade em alguns experimentos (Elliot & Aarts, 2011)
+              e ele aparece ligado a vencer mais no esporte de combate (Hill & Barton, 2005). O <b style={{ color: c.ink }}>laranja</b> pega
+              parte dessa energia sem parecer alerta de erro. O <b style={{ color: c.ink }}>volt</b> é a cor que o olho mais enxerga e destaca
+              o botão no meio do treino. O <b style={{ color: c.ink }}>azul</b> acalma.
+            </p>
+          )}
+          <div className="grid grid-cols-2 gap-2">
+            {Object.entries(CORES_DESTAQUE).map(([id, cor]) => {
+              const ativo = corDestaque === id;
+              const hex = cor[tema].accent;
+              return (
+                <button key={id} type="button" onClick={() => setCorDestaque(id)}
+                  className="flex items-center gap-2.5 p-2.5 rounded-2xl text-left"
+                  style={{ background: ativo ? `${hex}1F` : c.surface2, border: `2px solid ${ativo ? hex : "transparent"}` }}>
+                  <span className="w-7 h-7 rounded-full shrink-0 flex items-center justify-center" style={{ background: hex }}>
+                    {ativo && <Check size={15} strokeWidth={3} color={cor[tema].accentInk} />}
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-sm font-bold">{cor.nome}</span>
+                    <span className="block text-[11px] leading-tight" style={{ color: c.muted }}>{cor.porque}</span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </Grupo>
+
+      <Grupo c={c} titulo="Treino">
+        <div className="p-4">
+          <div className="text-sm font-semibold mb-2">Descanso padrão</div>
+          <div className="grid grid-cols-4 gap-1 p-1 rounded-2xl" style={{ background: c.surface2 }}>
+            {[45, 60, 90, 120].map((sg) => (
+              <button key={sg} type="button" onClick={() => setDescanso(sg)}
+                className="py-2 rounded-xl text-sm font-bold"
+                style={{ background: descanso === sg ? c.surface : "transparent", color: descanso === sg ? c.ink : c.muted, boxShadow: descanso === sg ? "0 1px 3px rgba(0,0,0,.15)" : "none" }}>
+                {mmss(sg)}
+              </button>
+            ))}
+          </div>
+          <p className="text-xs mt-2" style={{ color: c.muted }}>Usado só quando o exercício não tem descanso próprio.</p>
+        </div>
+      </Grupo>
+
+      <Grupo c={c} titulo="Planejamento">
+        <LinhaMais c={c} icone={CalendarDays} texto="Marcos" onClick={() => abrir("marcos")} primeira />
+        <LinhaMais c={c} icone={BookOpen} texto="Guia e referências" onClick={() => abrir("guia")} />
+      </Grupo>
+
+      <Grupo c={c} titulo="Dados" rodape={salvoTxt}>
+        <LinhaMais c={c} icone={Download} texto="Exportar backup" onClick={onExportar} primeira />
+        <LinhaMais c={c} icone={Upload} texto="Importar backup" onClick={onImportar} />
+      </Grupo>
+
+      <div className="text-center text-xs pb-2" style={{ color: c.muted }}>ZizuFIT · versão {VERSAO_APP}</div>
     </div>
   );
 }
 
 /* ------------------------------------------------------------ tela 2 */
 
-function TelaSessao({ c, sessao, setSessao, treinos, series, registrar, encerrar, removerSerie, editarSerie, onExportar, cardios, registrarCardio, removerCardio }) {
+/* Tela do treino (v15): modo foco, sem o menu de baixo.
+   Topo fixo (voltar · treino · tempo) → exercícios em pílulas → card do
+   exercício com a TABELA DE SÉRIES (anterior × hoje) e os dois steppers
+   grandes → botão de registrar sempre visível embaixo, com o descanso em
+   destaque logo acima dele. Dicas e textos ficam atrás do "i". */
+function TelaSessao({ c, sessao, setSessao, treinos, series, registrar, encerrar, removerSerie, editarSerie, onExportar, cardios, registrarCardio, removerCardio, timer, sair }) {
   const treino = treinos.find((t) => t.id === sessao.treino);
   const ex = treino.exercicios.find((e) => e.nome === sessao.exercicio) || treino.exercicios[0];
   const [reps, setReps] = useState("");
@@ -1385,6 +1528,9 @@ function TelaSessao({ c, sessao, setSessao, treinos, series, registrar, encerrar
   const [videoAberto, setVideoAberto] = useState(false);
   const [menu, setMenu] = useState(false);
   const [editId, setEditId] = useState(null);
+  const [info, setInfo] = useState(false);
+  const [notaAberta, setNotaAberta] = useState(false);
+  const pilulasRef = useRef(null);
 
   /* cronômetro do treino */
   const [, setTick] = useState(0);
@@ -1399,20 +1545,19 @@ function TelaSessao({ c, sessao, setSessao, treinos, series, registrar, encerrar
 
   const idx = treino.exercicios.findIndex((e) => e.nome === ex.nome);
   const totalSeriesPlano = treino.exercicios.reduce((n, e) => n + e.series, 0);
-  const seriesFeitasHoje = treino.exercicios.reduce((n, e) => n + feitasNoDia(e.nome), 0);
+  const seriesFeitasHoje = treino.exercicios.reduce((n, e) => n + Math.min(feitasNoDia(e.nome), e.series), 0);
   const completoEx = feitasHoje.length >= ex.series;
   const proximo = treino.exercicios.find((e) => e.nome !== ex.nome && feitasNoDia(e.nome) < e.series);
   const tudoFeito = !treino.exercicios.some((e) => feitasNoDia(e.nome) < e.series);
-  const pctSessao = Math.round((seriesFeitasHoje / totalSeriesPlano) * 100);
+  const pctSessao = Math.min(100, Math.round((seriesFeitasHoje / totalSeriesPlano) * 100));
 
-  /* bi-set: par, posição (1/2) e o que vem depois desta série */
+  /* bi-set: par e o que vem depois desta série */
   const par = parceiroBiset(treino, ex);
-  const posBiset = par ? (treino.exercicios.indexOf(ex) < treino.exercicios.indexOf(par) ? 1 : 2) : 0;
   const vaiProPar = par && feitasNoDia(par.nome) < par.series && feitasNoDia(par.nome) <= feitasHoje.length;
   const depoisTxt = !par ? null
-    : vaiProPar ? `depois: ${nomeCurto(par.nome)}, sem descanso`
+    : vaiProPar ? `depois vai direto para ${nomeCurto(par.nome)}, sem descanso`
     : `depois: descanso ${mmss(ex.descanso)}`;
-  /* blocos para os chips: bi-set junto num só bloco */
+  /* blocos para as pílulas: bi-set junto num só bloco */
   const blocos = [];
   treino.exercicios.forEach((e) => {
     const ultimo = blocos[blocos.length - 1];
@@ -1430,14 +1575,17 @@ function TelaSessao({ c, sessao, setSessao, treinos, series, registrar, encerrar
       carga: Math.max(...doDia.map((s) => s.carga)),
       reps: doDia.map((s) => s.reps).join("/"),
       repsArr: doDia.map((s) => s.reps),
+      cargasArr: doDia.map((s) => s.carga),
     };
   }, [series, ex.nome]);
 
   const emRetorno = !!anterior && naSemanaDeRetorno() && anterior.data < RETORNO.inicio;
   const sugestao = useMemo(() => (emRetorno
-    ? { tom: "warn", txt: `Retorno: ~90% da última (${fmtKg(cargaRetorno(anterior.carga, ex))} kg). Se fechar o teto da faixa com folga, suba no próximo treino.` }
+    ? { tom: "warn", curto: "Retorno: ~90%", txt: `Retorno: ~90% da última (${fmtKg(cargaRetorno(anterior.carga, ex))} kg). Se fechar o teto da faixa com folga, suba no próximo treino.` }
     : sugestaoProgressao(ex, anterior)), [ex, anterior, emRetorno]);
+  const chipSugestao = sugestao && ({ ok: "↑ Pode subir a carga", pr: "Repita a carga", warn: sugestao.curto }[sugestao.tom]);
 
+  /* troca de exercício: carrega a carga sugerida e fecha os painéis */
   useEffect(() => {
     const retorno = anterior && naSemanaDeRetorno() && anterior.data < RETORNO.inicio;
     const ultHoje = feitasHoje[feitasHoje.length - 1]; /* voltando ao exercício (ex.: bi-set): repete a série de agora há pouco */
@@ -1446,6 +1594,10 @@ function TelaSessao({ c, sessao, setSessao, treinos, series, registrar, encerrar
     setErro("");
     setVideoAberto(false);
     setEditId(null);
+    setInfo(false);
+    setNotaAberta(false);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    centralizarAtivo(pilulasRef.current);
   }, [ex.nome]); // eslint-disable-line
 
   const bar = barraDe(ex);
@@ -1461,6 +1613,7 @@ function TelaSessao({ c, sessao, setSessao, treinos, series, registrar, encerrar
     setErro("");
     registrar({ exercicio: ex.nome, reps: r, carga: k, obs, descansoEx: ex.descanso });
     setObs("");
+    setNotaAberta(false);
   };
 
   const avancar = () => {
@@ -1468,308 +1621,344 @@ function TelaSessao({ c, sessao, setSessao, treinos, series, registrar, encerrar
     else encerrar();
   };
 
+  /* dica do equipamento, embaixo da carga */
+  const halterInexistente = tipo === "halter" && cargaNum > 0 && !HALTERES.includes(cargaNum);
+  const dicaCarga = tipo === "placa" && cargaNum > 0 ? `${fmtKg(cargaNum / PLACA_KG)} ${cargaNum / PLACA_KG === 1 ? "placa" : "placas"}`
+    : tipo === "anilha" && bar != null ? `total ${fmtKg(bar + 2 * cargaNum)} kg`
+    : halterInexistente ? "esse halter não existe"
+    : tipo === "corpo" && !cargaNum ? "peso do corpo" : null;
+
+  const nLinhas = Math.max(ex.series, feitasHoje.length + (completoEx ? 0 : 1));
+  const COLUNAS = "30px 1fr 64px 52px 30px";
+  const avisoTreino = avisoDoTreino(treino);
+  const proxNoTimer = !completoEx ? `${nomeCurto(ex.nome)} · série ${feitasHoje.length + 1}` : proximo ? nomeCurto(proximo.nome) : null;
+
   return (
-    <div className="px-4 space-y-4">
-      {/* cabeçalho da sessão */}
-      <div className="p-4 rounded-2xl relative" style={{ background: c.surface, border: `1px solid ${c.line}` }}>
-        <div className="flex items-start justify-between">
-          <div>
-            <div className="text-xs uppercase tracking-widest" style={{ color: c.accent, fontFamily: MONO }}>
-              Treino {treino.id} · {treino.nome.split("·")[0].trim()}
-            </div>
-            <div className="text-sm mt-0.5" style={{ color: c.muted, fontFamily: MONO }}>
-              exercício {idx + 1}/{treino.exercicios.length}
-            </div>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="text-sm font-semibold tabular-nums flex items-center gap-1" style={{ fontFamily: MONO }}>
-              <Timer size={14} style={{ color: c.muted }} /> {fmtDur(decorrido)}
-            </span>
-            <button type="button" onClick={() => setMenu((m) => !m)} className="p-1.5 rounded-lg" style={{ background: c.surface2 }} aria-label="Opções do treino">
-              <MoreVertical size={16} />
-            </button>
-          </div>
-        </div>
-        <div className="flex items-center justify-between mt-3 mb-1 text-xs" style={{ color: c.muted, fontFamily: MONO }}>
-          <span>progresso da sessão</span>
-          <span style={{ color: c.ink }}>{seriesFeitasHoje}/{totalSeriesPlano} séries</span>
-        </div>
-        <div className="h-2 rounded-full overflow-hidden" style={{ background: c.surface2 }}>
-          <div className="h-full rounded-full transition-all" style={{ width: `${pctSessao}%`, background: c.ok }} />
-        </div>
-        {avisoDoTreino(treino) && <p className="text-xs mt-3" style={{ color: c.muted }}>{avisoDoTreino(treino)}</p>}
-
-        {menu && (
-          <>
-            <div className="fixed inset-0 z-30" onClick={() => setMenu(false)} />
-            <div className="absolute right-4 top-14 z-40 w-48 rounded-xl overflow-hidden"
-              style={{ background: c.surface, border: `1px solid ${c.line}`, boxShadow: "0 12px 30px -10px rgba(0,0,0,.4)" }}>
-              <button type="button" onClick={() => { setMenu(false); encerrar(); }}
-                className="w-full flex items-center gap-2.5 px-3 py-3 text-sm text-left" style={{ color: c.ink }}>
-                <Flag size={15} /> Encerrar treino
-              </button>
-              <button type="button" onClick={() => { setMenu(false); onExportar(); }}
-                className="w-full flex items-center gap-2.5 px-3 py-3 text-sm text-left"
-                style={{ color: c.ink, borderTop: `1px solid ${c.line}` }}>
-                <Download size={15} /> Exportar backup
-              </button>
-            </div>
-          </>
-        )}
-      </div>
-
-      {AQUECIMENTOS[treino.aquecimento] && (
-        <CardAquecimento c={c} aq={AQUECIMENTOS[treino.aquecimento]}
-          iniciouSeries={seriesFeitasHoje > 0}
-          feitos={sessao.aquecido || []}
-          toggle={(i) => setSessao({
-            ...sessao,
-            aquecido: (sessao.aquecido || []).includes(i)
-              ? sessao.aquecido.filter((x) => x !== i)
-              : [...(sessao.aquecido || []), i],
-          })} />
-      )}
-
-      {naSemanaDeRetorno() && anterior && anterior.data < RETORNO.inicio && (
-        <div className="px-3 py-2 rounded-xl text-xs" style={{ background: c.surface2, color: c.warn }}>
-          Semana de retorno: carga sugerida = ~90% da última ({String(anterior.carga).replace(".", ",")} kg). Pare com 2–3 reps sobrando.
-        </div>
-      )}
-
-      {/* chips de exercício — bi-set fica junto num bloco só */}
-      <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 items-stretch">
-        {blocos.map((bloco) => {
-          const chips = bloco.map((e, j) => {
-            const ativo = e.nome === ex.nome;
-            const n = feitasNoDia(e.nome);
-            const completo = n >= e.series;
-            return (
-              <React.Fragment key={e.nome}>
-                {j > 0 && <span className="self-center text-sm font-bold" style={{ color: c.biset }}>⇄</span>}
-                <button type="button" onClick={() => setSessao({ ...sessao, exercicio: e.nome })}
-                  className="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-full text-sm whitespace-nowrap"
-                  style={{
-                    background: ativo ? c.raised : c.surface,
-                    color: ativo ? c.ink : (completo ? c.ok : c.ink),
-                    border: `1px solid ${ativo ? (e.biset ? c.biset : c.accent) : (completo ? c.ok : c.line)}`,
-                    fontWeight: ativo ? 600 : 400,
-                  }}>
-                  {completo && !ativo && <Check size={13} style={{ color: c.ok }} />}
-                  {ativo && <span className="w-1.5 h-1.5 rounded-full" style={{ background: e.biset ? c.biset : c.accent }} />}
-                  {nomeCurto(e.nome)}
-                  <span className="px-1.5 py-0.5 rounded-full text-[11px]"
-                    style={{ background: c.surface2, color: completo ? c.ok : c.muted, fontFamily: MONO }}>
-                    {n}/{e.series}
-                  </span>
-                </button>
-              </React.Fragment>
-            );
-          });
-          if (bloco.length < 2) return chips;
-          return (
-            <div key={`bs${bloco[0].biset}`} className="shrink-0 flex items-center gap-1.5 pl-2 pr-1 py-1 rounded-full relative"
-              style={{ border: `1.5px solid ${c.biset}`, background: `${c.biset}14` }}>
-              <span className="text-[9px] font-bold uppercase tracking-wider" style={{ color: c.biset, fontFamily: MONO, writingMode: "vertical-rl", transform: "rotate(180deg)" }}>bi-set</span>
-              {chips}
-            </div>
-          );
-        })}
-      </div>
-
-      {/* card herói */}
-      <div className="rounded-2xl overflow-hidden" style={{ background: c.raised, border: `${par ? 2 : 1}px solid ${par ? c.biset : c.accent}`, boxShadow: "0 14px 34px -16px rgba(0,0,0,.5)" }}>
-        {par && (
-          <div className="flex items-center gap-2 px-4 py-2 text-xs font-semibold" style={{ background: c.biset, color: "#fff", fontFamily: MONO }}>
-            <span className="uppercase tracking-widest">bi-set {posBiset}/2</span>
-            <span className="opacity-90 truncate">
-              {posBiset === 1 ? <><u>{nomeCurto(ex.nome)}</u> ⇄ {nomeCurto(par.nome)}</> : <>{nomeCurto(par.nome)} ⇄ <u>{nomeCurto(ex.nome)}</u></>}
-            </span>
-          </div>
-        )}
-        <div className="p-4">
-        <div className="flex items-start justify-between gap-2">
-          <h2 className="text-xl font-bold leading-tight">{ex.nome}</h2>
-          <Selo c={c} status={ex.status} />
-        </div>
-
-        {/* número herói */}
-        <div className="flex items-stretch gap-3 mt-4 mb-1">
-          <span className="w-1.5 rounded-full shrink-0" style={{ background: PLATE_COLORS[bar] || (par ? c.biset : c.accent), minHeight: 52 }} />
-          <div className="min-w-0">
-            <div className="flex items-baseline gap-3 flex-wrap">
-              <span style={{ fontFamily: MONO, fontWeight: 600, fontSize: 54, lineHeight: .9, letterSpacing: "-.03em" }}>
-                {String(carga || 0).replace(".", ",")}
-                <span style={{ fontSize: 18, fontWeight: 500, color: c.muted, marginLeft: 5 }}>kg</span>
-              </span>
-              <span style={{ fontFamily: MONO, fontSize: 23, fontWeight: 500, color: c.muted }}>× {reps || 0}</span>
-            </div>
-            {tipo === "placa" && cargaNum > 0 && (
-              <div className="mt-1.5" style={{ fontFamily: MONO, fontSize: 14, color: c.muted }}>
-                ({fmtKg(cargaNum / PLACA_KG)} {cargaNum / PLACA_KG === 1 ? "placa" : "placas"})
-              </div>
-            )}
-            {tipo === "halter" && cargaNum > 0 && (
-              <div className="mt-1.5" style={{ fontFamily: MONO, fontSize: 12, color: c.muted }}>
-                (por halter){!HALTERES.includes(cargaNum) ? " · esse halter não existe" : ""}
-              </div>
-            )}
-            {tipo === "corpo" && !cargaNum && (
-              <div className="mt-1.5" style={{ fontFamily: MONO, fontSize: 12, color: c.muted }}>(peso do corpo)</div>
-            )}
-          </div>
-        </div>
-
-        {anilhas && (
-          <div className="flex flex-wrap items-center gap-1.5 mt-2" style={{ fontFamily: MONO, fontSize: 11, color: c.muted }}>
-            <span>por lado</span>
-            {anilhas.list.length
-              ? anilhas.list.map((a, i) => {
-                  const co = corAnilha(a, c);
-                  return (
-                    <span key={i} className="px-1.5 py-0.5 rounded font-semibold"
-                      style={{ background: co.bg, color: co.fg }}>
-                      {String(a).replace(".", ",")}
-                    </span>
-                  );
-                })
-              : <span>só a barra</span>}
-            {anilhas.resto > 0 && <span style={{ color: c.warn }}>+{String(anilhas.resto).replace(".", ",")} sem anilha</span>}
-            <span>· total {String(bar + 2 * cargaNum).replace(".", ",")} kg</span>
-          </div>
-        )}
-
-        <div className="flex flex-wrap gap-x-4 gap-y-1 mt-3 text-sm" style={{ fontFamily: MONO, color: c.muted }}>
-          <span><b style={{ color: c.ink }}>{ex.series}</b> séries</span>
-          <span><b style={{ color: c.ink }}>{ex.reps}</b> reps</span>
-          <span><b style={{ color: c.ink }}>{mmss(ex.descanso)}</b> {par ? "descanso após o par" : "descanso"}</span>
-        </div>
-
-        {ex.obs && <p className="text-xs mt-2" style={{ color: c.muted }}>{ex.obs}</p>}
-
-        <button type="button" onClick={() => setVideoAberto(true)}
-          className="w-full mt-3 py-2.5 rounded-xl font-medium flex items-center justify-center gap-2 text-sm"
-          style={{ background: c.surface2, color: c.ink }}>
-          <Video size={16} /> Ver vídeo do exercício
-        </button>
-
-        <div className="grid grid-cols-2 gap-3 mt-4">
-          <Stepper c={c} rotulo="Repetições" valor={reps} setValor={setReps} passo={1} min={0} />
-          <Stepper c={c}
-            rotulo={tipo === "anilha" ? "Carga (kg/lado)" : tipo === "halter" ? "Carga (kg/halter)" : "Carga (kg)"}
-            valor={carga} setValor={setCarga} passo={1} min={0}
-            ajusta={(v, dir) => proximaCarga(ex, v, dir)} />
-        </div>
-
-        {(anterior || sugestao) && (
-          <div className="mt-3 rounded-xl overflow-hidden" style={{ background: c.surface2 }}>
-            {anterior && (
-              <div className="flex items-center justify-between px-3 py-2 text-sm" style={{ fontFamily: MONO }}>
-                <span style={{ color: c.muted }}>última · {dataBR(anterior.data).slice(0, 5)}</span>
-                <span className="font-semibold">{anterior.carga} kg × {anterior.reps}</span>
-              </div>
-            )}
-            {sugestao && (
-              <div className="px-3 py-2 text-xs flex items-start gap-1.5"
-                style={{ color: c[sugestao.tom] || c.muted, borderTop: anterior ? `1px solid ${c.line}` : "none" }}>
-                <Activity size={13} style={{ marginTop: 1, flexShrink: 0 }} /> {sugestao.txt}
-              </div>
-            )}
-          </div>
-        )}
-
-        <input value={obs} onChange={(e) => setObs(e.target.value)}
-          placeholder="Como foi a série? (opcional)"
-          className="w-full mt-3 px-3 py-2 rounded-xl text-sm outline-none"
-          style={{ background: c.surface2, color: c.ink, border: `1px solid ${c.line}` }} />
-
-        {erro && <div className="mt-2 text-sm" style={{ color: c.pr }}>{erro}</div>}
-
-        {!completoEx ? (
-          <button type="button" onClick={enviar}
-            className="w-full mt-3 py-4 rounded-2xl font-semibold text-lg flex items-center justify-center gap-2"
-            style={{ background: par ? c.biset : c.accent, color: par ? "#fff" : c.accentInk }}>
-            <Check size={22} />
-            <span className="flex flex-col items-start leading-tight">
-              <span>Registrar série {feitasHoje.length + 1} de {ex.series}</span>
-              {depoisTxt && <span className="text-xs font-medium opacity-80">{depoisTxt}</span>}
-            </span>
+    <div>
+      {/* ---------- topo fixo ---------- */}
+      <div className="sticky top-0 z-20" style={{ background: c.bg, paddingTop: "max(0.5rem, env(safe-area-inset-top))" }}>
+        <div className="px-2 flex items-center h-12 relative">
+          <button type="button" onClick={sair} className="w-10 h-10 flex items-center justify-center rounded-full" aria-label="Voltar para Hoje">
+            <ChevronLeft size={24} />
           </button>
-        ) : (
-          <>
-            <div className="mt-3 text-sm text-center" style={{ color: c.ok, fontFamily: MONO }}>
-              ✓ {ex.series} séries de {nomeCurto(ex.nome)} feitas
+          <div className="flex-1 text-center min-w-0">
+            <div className="font-bold text-[15px] truncate">Treino {treino.id}</div>
+            <div className="text-xs font-medium" style={{ color: c.muted }}>
+              {fmtDur(decorrido)} · {seriesFeitasHoje}/{totalSeriesPlano} séries
             </div>
-            <button type="button" onClick={avancar}
-              className="w-full mt-2 py-4 rounded-2xl font-semibold text-lg flex items-center justify-center gap-2"
-              style={{ background: c.ok, color: "#fff" }}>
-              {proximo ? <>Próximo: {nomeCurto(proximo.nome)} <ArrowRight size={20} /></> : <>Finalizar treino {treino.id} <Flag size={18} /></>}
-            </button>
-            <button type="button" onClick={enviar}
-              className="w-full mt-2 py-2.5 rounded-xl text-sm font-medium" style={{ background: c.surface2, color: c.muted }}>
-              + registrar série extra
-            </button>
-          </>
-        )}
+          </div>
+          <button type="button" onClick={() => setMenu((m) => !m)} className="w-10 h-10 flex items-center justify-center rounded-full" aria-label="Opções do treino">
+            <MoreHorizontal size={22} />
+          </button>
+          {menu && (
+            <>
+              <div className="fixed inset-0 z-30" onClick={() => setMenu(false)} />
+              <div className="absolute right-3 top-12 z-40 w-52 rounded-2xl overflow-hidden"
+                style={{ background: c.surface, border: `1px solid ${c.line}`, boxShadow: "0 16px 40px -12px rgba(0,0,0,.45)" }}>
+                <button type="button" onClick={() => { setMenu(false); encerrar(); }}
+                  className="w-full flex items-center gap-2.5 px-4 py-3.5 text-sm font-medium text-left" style={{ color: c.pr }}>
+                  <Flag size={16} /> Encerrar treino agora
+                </button>
+                <button type="button" onClick={() => { setMenu(false); onExportar(); }}
+                  className="w-full flex items-center gap-2.5 px-4 py-3.5 text-sm font-medium text-left"
+                  style={{ color: c.ink, borderTop: `1px solid ${c.line}` }}>
+                  <Download size={16} /> Exportar backup
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+        <div className="h-[3px]" style={{ background: c.surface2 }}>
+          <div className="h-full transition-all" style={{ width: `${pctSessao}%`, background: c.accent }} />
         </div>
       </div>
 
-      {feitasHoje.length > 0 && (
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs uppercase tracking-widest" style={{ color: c.muted, fontFamily: MONO }}>hoje neste exercício</span>
-            <span className="text-xs" style={{ color: c.muted, fontFamily: MONO }}>{feitasHoje.length} {feitasHoje.length === 1 ? "série" : "séries"}</span>
+      <div className="px-4 pt-3 space-y-3">
+        {/* ---------- pílulas dos exercícios ---------- */}
+        <div ref={pilulasRef} className="relative flex gap-2 overflow-x-auto sem-barra -mx-4 px-4 py-0.5 items-center">
+          {blocos.map((bloco) => {
+            const pilulas = bloco.map((e, j) => {
+              const ativo = e.nome === ex.nome;
+              const n = feitasNoDia(e.nome);
+              const completo = n >= e.series;
+              return (
+                <React.Fragment key={e.nome}>
+                  {j > 0 && <span className="text-xs font-bold" style={{ color: c.biset }}>⇄</span>}
+                  <button type="button" onClick={() => setSessao({ ...sessao, exercicio: e.nome })}
+                    data-ativo={ativo ? "1" : undefined}
+                    className="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-full text-[13px] whitespace-nowrap font-semibold"
+                    style={{
+                      background: ativo ? c.accent : completo ? `${c.ok}1F` : c.surface,
+                      color: ativo ? c.accentInk : completo ? c.ok : c.ink,
+                    }}>
+                    {completo && !ativo && <Check size={14} strokeWidth={3} />}
+                    {nomeCurto(e.nome)}
+                    {!completo && <span style={{ opacity: 0.65 }}>{n}/{e.series}</span>}
+                  </button>
+                </React.Fragment>
+              );
+            });
+            if (bloco.length < 2) return pilulas;
+            return (
+              <div key={`bs${bloco[0].biset}`} className="shrink-0 flex items-center gap-1 p-[3px] rounded-full"
+                style={{ border: `1.5px solid ${c.biset}66` }}>
+                {pilulas}
+              </div>
+            );
+          })}
+        </div>
+
+        {avisoTreino && seriesFeitasHoje === 0 && <Aviso c={c} texto={avisoTreino} cor={c.warn} />}
+
+        {AQUECIMENTOS[treino.aquecimento] && (
+          <CardAquecimento c={c} aq={AQUECIMENTOS[treino.aquecimento]}
+            feitos={sessao.aquecido || []}
+            toggle={(i) => setSessao({
+              ...sessao,
+              aquecido: (sessao.aquecido || []).includes(i)
+                ? sessao.aquecido.filter((x) => x !== i)
+                : [...(sessao.aquecido || []), i],
+            })} />
+        )}
+
+        {/* ---------- card do exercício ---------- */}
+        <section className="rounded-3xl p-4" style={{ background: c.surface, boxShadow: c.sombra }}>
+          <div className="flex items-center gap-2 text-xs font-semibold" style={{ color: c.muted }}>
+            <span>Exercício {idx + 1} de {treino.exercicios.length}</span>
+            {par && (
+              <span className="px-2 py-0.5 rounded-full truncate" style={{ background: `${c.biset}22`, color: c.biset }}>
+                bi-set com {nomeCurto(par.nome)}
+              </span>
+            )}
           </div>
-          <div className="space-y-2">
-            {feitasHoje.map((s) => (
-              editId === s.id
-                ? <EditRow key={s.id} c={c} s={s}
+          <div className="flex items-start gap-2 mt-1">
+            <h2 className="flex-1 text-[22px] font-extrabold leading-tight tracking-tight">{ex.nome}</h2>
+            <BotaoIcone c={c} icone={Info} onClick={() => setInfo((v) => !v)} ativo={info} rotulo="Dicas do exercício" />
+            <BotaoIcone c={c} icone={Video} onClick={() => setVideoAberto(true)} rotulo="Ver vídeo" />
+          </div>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 mt-1.5 text-sm" style={{ color: c.muted }}>
+            <span><b style={{ color: c.ink }}>{ex.series} × {ex.reps}</b>{/^[\d\s–-]+$/.test(String(ex.reps)) ? " reps" : ""}</span>
+            <span>descanso <b style={{ color: c.ink }}>{mmss(ex.descanso)}</b>{par ? " após o par" : ""}</span>
+            {chipSugestao && (
+              <button type="button" onClick={() => setInfo(true)} className="px-2 py-0.5 rounded-full text-xs font-semibold"
+                style={{ background: `${c[sugestao.tom]}1F`, color: c[sugestao.tom] }}>{chipSugestao}</button>
+            )}
+          </div>
+
+          {info && (
+            <div className="mt-3 p-3 rounded-2xl text-sm space-y-2 leading-snug" style={{ background: c.surface2 }}>
+              {ex.status && STATUS[ex.status] && <div><Selo c={c} status={ex.status} /></div>}
+              {ex.obs && <p>{ex.obs}</p>}
+              {sugestao && <p style={{ color: sugestao.tom === "muted" ? c.muted : c[sugestao.tom] }}>{sugestao.txt}</p>}
+              {anilhas && (
+                <div className="flex flex-wrap items-center gap-1.5 text-xs" style={{ color: c.muted }}>
+                  <span>anilhas por lado</span>
+                  {anilhas.list.length
+                    ? anilhas.list.map((a, i) => {
+                        const co = corAnilha(a, c);
+                        return <span key={i} className="px-1.5 py-0.5 rounded font-bold" style={{ background: co.bg, color: co.fg }}>{fmtKg(a)}</span>;
+                      })
+                    : <span>só a barra</span>}
+                  {anilhas.resto > 0 && <span style={{ color: c.warn }}>+{fmtKg(anilhas.resto)} sem anilha</span>}
+                  <span>· total {fmtKg(bar + 2 * cargaNum)} kg</span>
+                </div>
+              )}
+              {avisoTreino && <p style={{ color: c.muted }}>{avisoTreino}</p>}
+            </div>
+          )}
+
+          {/* ---------- tabela de séries ---------- */}
+          <div className="mt-4">
+            <div className="grid items-center px-2 pb-1.5 text-[11px] font-bold uppercase tracking-wide"
+              style={{ gridTemplateColumns: COLUNAS, color: c.muted }}>
+              <span>Série</span><span className="pl-2">Anterior</span><span className="text-center">kg</span><span className="text-center">Reps</span><span />
+            </div>
+            <div className="space-y-1">
+              {Array.from({ length: nLinhas }, (_, i) => {
+                const s = feitasHoje[i];
+                const atual = !s && i === feitasHoje.length && !completoEx;
+                const ant = anterior && anterior.repsArr[i] != null ? `${fmtKg(anterior.cargasArr[i])} × ${anterior.repsArr[i]}` : "—";
+                if (s && editId === s.id) {
+                  return <EditRow key={s.id} c={c} s={s}
                     salvar={(patch) => { editarSerie(s.id, patch); setEditId(null); }}
-                    cancelar={() => setEditId(null)} />
-                : (
-                  <div key={s.id} className="flex items-center gap-3 px-4 py-3 rounded-xl"
-                    style={{ background: c.surface, border: `1px solid ${c.line}` }}>
-                    <span className="w-1 rounded-full self-stretch" style={{ background: PLATE_COLORS[barraDe(ex)] || c.line, minWidth: 4 }} />
-                    <span className="text-sm" style={{ color: c.muted, fontFamily: MONO }}>série {s.serie}</span>
-                    <span className="font-semibold ml-auto" style={{ fontFamily: MONO }}>{s.carga} kg × {s.reps}</span>
-                    <button type="button" onClick={() => setEditId(s.id)} aria-label="Editar série"><Pencil size={14} style={{ color: c.muted }} /></button>
-                    <button type="button" onClick={() => removerSerie(s.id)} aria-label="Remover série"><Trash2 size={14} style={{ color: c.muted }} /></button>
-                  </div>
-                )
-            ))}
+                    remover={() => { removerSerie(s.id); setEditId(null); }}
+                    cancelar={() => setEditId(null)} />;
+                }
+                return (
+                  <button type="button" key={s ? s.id : `p${i}`} disabled={!s} onClick={() => s && setEditId(s.id)}
+                    className="w-full grid items-center px-2 py-2.5 rounded-xl text-left"
+                    style={{
+                      gridTemplateColumns: COLUNAS,
+                      background: s ? `${c.ok}14` : atual ? c.accentSoft : "transparent",
+                      boxShadow: atual ? `inset 0 0 0 1.5px ${c.accent}` : "none",
+                    }}>
+                    <span className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold"
+                      style={{ background: s ? c.ok : atual ? c.accent : c.surface2, color: s ? "#fff" : atual ? c.accentInk : c.muted }}>
+                      {i + 1}
+                    </span>
+                    <span className="pl-2 text-sm truncate" style={{ color: c.muted }}>{ant}</span>
+                    <span className="text-center text-base font-bold" style={{ color: s ? c.ink : atual ? c.accent : c.muted }}>
+                      {s ? fmtKg(s.carga) : atual ? fmtKg(cargaNum) : "—"}
+                    </span>
+                    <span className="text-center text-base font-bold" style={{ color: s ? c.ink : atual ? c.accent : c.muted }}>
+                      {s ? s.reps : atual ? (reps || 0) : "—"}
+                    </span>
+                    <span className="flex justify-end">
+                      {s ? <Check size={18} strokeWidth={3} style={{ color: c.ok }} />
+                        : atual ? <span className="w-2 h-2 rounded-full" style={{ background: c.accent }} /> : null}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            {feitasHoje.length > 0 && !editId && (
+              <div className="text-[11px] text-center mt-1.5" style={{ color: c.muted }}>toque numa série feita para corrigir</div>
+            )}
+          </div>
+
+          {/* ---------- entrada da série atual ---------- */}
+          {!completoEx && (
+            <>
+              <div className="grid grid-cols-2 gap-2.5 mt-4">
+                <Stepper c={c} rotulo={tipo === "anilha" ? "kg por lado" : tipo === "halter" ? "kg por halter" : "Carga (kg)"}
+                  valor={carga} setValor={setCarga} passo={1} min={0} dica={dicaCarga} dicaCor={halterInexistente ? c.warn : null}
+                  ajusta={(v, dir) => proximaCarga(ex, v, dir)} />
+                <Stepper c={c} rotulo="Repetições" valor={reps} setValor={setReps} passo={1} min={0} />
+              </div>
+              {notaAberta ? (
+                <input value={obs} onChange={(e) => setObs(e.target.value)} autoFocus
+                  placeholder="Como foi a série?"
+                  className="w-full mt-2.5 px-3.5 py-2.5 rounded-xl text-sm outline-none"
+                  style={{ background: c.surface2, color: c.ink }} />
+              ) : (
+                <button type="button" onClick={() => setNotaAberta(true)} className="mt-2 px-1 py-1 text-xs font-semibold flex items-center gap-1" style={{ color: c.muted }}>
+                  <Pencil size={12} /> anotar algo nesta série
+                </button>
+              )}
+            </>
+          )}
+          {erro && <div className="mt-2 text-sm font-medium" style={{ color: c.pr }}>{erro}</div>}
+        </section>
+
+        {tudoFeito && (
+          <CardCardio c={c} cardios={cardios} registrar={registrarCardio} remover={removerCardio} />
+        )}
+      </div>
+
+      {/* ---------- dock: descanso + ação principal ---------- */}
+      <div className="fixed bottom-0 left-0 right-0 z-30"
+        style={{ paddingBottom: "max(12px, env(safe-area-inset-bottom))", background: `linear-gradient(to top, ${c.bg} 72%, ${c.bg}00)` }}>
+        <div className="max-w-md mx-auto px-4 pt-6 space-y-2">
+          {timer && <TimerGrande c={c} {...timer} proximo={proxNoTimer} />}
+          {!timer && !completoEx && depoisTxt && (
+            <div className="text-center text-xs font-semibold" style={{ color: vaiProPar ? c.biset : c.muted }}>
+              {vaiProPar ? "⇄ " : ""}{depoisTxt}
+            </div>
+          )}
+          <div className="flex gap-2">
+            {completoEx && (
+              <button type="button" onClick={enviar} className="px-4 rounded-2xl text-sm font-bold shrink-0"
+                style={{ background: c.surface2, color: c.ink }} aria-label="Registrar série extra">+1 série</button>
+            )}
+            {!completoEx ? (
+              <button type="button" onClick={enviar}
+                className="flex-1 py-3.5 rounded-2xl font-bold text-lg flex items-center justify-center gap-2.5"
+                style={{ background: c.accent, color: c.accentInk, boxShadow: `0 10px 24px -10px ${c.accent}` }}>
+                <Check size={22} strokeWidth={3} />
+                <span>Registrar série {feitasHoje.length + 1}</span>
+                <span className="text-base font-semibold opacity-70">· {fmtKg(cargaNum)} × {reps || 0}</span>
+              </button>
+            ) : proximo ? (
+              <button type="button" onClick={avancar}
+                className="flex-1 py-4 rounded-2xl font-bold text-lg flex items-center justify-center gap-2"
+                style={{ background: c.accent, color: c.accentInk }}>
+                Próximo: {nomeCurto(proximo.nome)} <ArrowRight size={20} />
+              </button>
+            ) : (
+              <button type="button" onClick={encerrar}
+                className="flex-1 py-4 rounded-2xl font-bold text-lg flex items-center justify-center gap-2"
+                style={{ background: c.ok, color: "#fff" }}>
+                <Flag size={19} /> Finalizar treino {treino.id}
+              </button>
+            )}
           </div>
         </div>
-      )}
-
-      {tudoFeito && (
-        <CardCardio c={c} cardios={cardios} registrar={registrarCardio} remover={removerCardio} abertoInicial />
-      )}
-
-      <button type="button" onClick={encerrar} className="w-full py-3 rounded-2xl font-medium"
-        style={{ background: tudoFeito ? c.ok : c.surface2, color: tudoFeito ? "#fff" : c.ink }}>
-        {tudoFeito ? `Finalizar treino ${treino.id}` : `Encerrar treino ${treino.id}`}
-      </button>
+      </div>
 
       {videoAberto && <ModalVideo c={c} exercicio={ex.nome} fechar={() => setVideoAberto(false)} />}
     </div>
   );
 }
 
-function EditRow({ c, s, salvar, cancelar }) {
+/* rola uma fileira de pílulas só na horizontal até a ativa ([data-ativo]) */
+function centralizarAtivo(box) {
+  const el = box?.querySelector('[data-ativo="1"]');
+  if (!el) return;
+  let x = 0;
+  for (let n = el; n && n !== box; n = n.offsetParent) x += n.offsetLeft;
+  box.scrollTo({ left: Math.max(0, x - box.clientWidth / 2 + el.offsetWidth / 2), behavior: "smooth" });
+}
+
+/* descanso em destaque, dentro da tela do treino */
+function TimerGrande({ c, restante, total, pausado, acabou, alternar, mais, fechar, proximo }) {
+  const size = 58, stroke = 5;
+  const r = (size - stroke) / 2;
+  const circ = 2 * Math.PI * r;
+  const off = total ? circ * (1 - Math.min(1, restante / total)) : circ;
+  const cor = acabou ? c.ok : c.accent;
+  return (
+    <div className="rounded-3xl p-3.5"
+      style={{ background: c.surface, border: `1.5px solid ${acabou ? c.ok : c.line}`, boxShadow: "0 16px 40px -16px rgba(0,0,0,.5)" }}>
+      <div className="flex items-center gap-3.5">
+        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="shrink-0" aria-hidden="true">
+          <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={c.surface2} strokeWidth={stroke} />
+          <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={cor} strokeWidth={stroke}
+            strokeLinecap="round" strokeDasharray={circ} strokeDashoffset={acabou ? 0 : off}
+            transform={`rotate(-90 ${size / 2} ${size / 2})`} style={{ transition: "stroke-dashoffset .5s linear" }} />
+        </svg>
+        <div className="flex-1 min-w-0">
+          <div className="text-[38px] font-extrabold leading-none tracking-tight" style={{ color: acabou ? c.ok : c.ink }} aria-live="polite">
+            {acabou ? "Bora!" : mmss(restante)}
+          </div>
+          <div className="text-xs font-semibold mt-1 truncate" style={{ color: c.muted }}>
+            {acabou ? "descanso acabou" : pausado ? "pausado" : "descanso"}{proximo ? ` · próxima: ${proximo}` : ""}
+          </div>
+        </div>
+      </div>
+      <div className="grid grid-cols-3 gap-2 mt-3">
+        <button type="button" onClick={mais} className="py-2.5 rounded-xl text-sm font-bold" style={{ background: c.surface2 }}>+15s</button>
+        <button type="button" onClick={acabou ? fechar : alternar} className="py-2.5 rounded-xl text-sm font-bold" style={{ background: c.surface2 }}>
+          {acabou ? "Fechar" : pausado ? "Seguir" : "Pausar"}
+        </button>
+        <button type="button" onClick={fechar} className="py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-1"
+          style={{ background: c.surface2 }}>
+          Pular <SkipForward size={14} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function EditRow({ c, s, salvar, remover, cancelar }) {
   const [r, setR] = useState(String(s.reps));
   const [k, setK] = useState(String(s.carga));
+  const campo = { color: c.ink, background: c.surface };
   return (
-    <div className="flex items-center gap-2 px-3 py-2 rounded-xl" style={{ background: c.surface, border: `1px solid ${c.accent}` }}>
-      <span className="text-xs" style={{ color: c.muted, fontFamily: MONO }}>s{s.serie}</span>
-      <input value={k} inputMode="decimal" onChange={(e) => setK(e.target.value.replace(",", "."))}
-        className="w-16 text-center py-1.5 rounded-lg text-sm bg-transparent outline-none"
-        style={{ fontFamily: MONO, color: c.ink, border: `1px solid ${c.line}` }} aria-label="Carga" />
-      <span style={{ color: c.muted, fontFamily: MONO }}>kg ×</span>
-      <input value={r} inputMode="numeric" onChange={(e) => setR(e.target.value)}
-        className="w-14 text-center py-1.5 rounded-lg text-sm bg-transparent outline-none"
-        style={{ fontFamily: MONO, color: c.ink, border: `1px solid ${c.line}` }} aria-label="Repetições" />
+    <div className="flex items-center gap-2 px-2 py-2 rounded-xl" style={{ background: c.surface2, boxShadow: `inset 0 0 0 1.5px ${c.accent}` }}>
+      <span className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0" style={{ background: c.accent, color: c.accentInk }}>{s.serie}</span>
+      <input value={k} inputMode="decimal" onChange={(e) => setK(e.target.value.replace(",", "."))} onFocus={(e) => e.target.select()}
+        className="w-16 text-center py-1.5 rounded-lg text-base font-bold outline-none" style={campo} aria-label="Carga" />
+      <span className="text-sm" style={{ color: c.muted }}>×</span>
+      <input value={r} inputMode="numeric" onChange={(e) => setR(e.target.value)} onFocus={(e) => e.target.select()}
+        className="w-12 text-center py-1.5 rounded-lg text-base font-bold outline-none" style={campo} aria-label="Repetições" />
+      <button type="button" onClick={remover} className="ml-auto w-8 h-8 rounded-lg flex items-center justify-center" style={{ color: c.pr }} aria-label="Apagar série">
+        <Trash2 size={16} />
+      </button>
+      <button type="button" onClick={cancelar} className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ color: c.muted }} aria-label="Cancelar">
+        <X size={16} />
+      </button>
       <button type="button" onClick={() => salvar({ reps: Number(r) || s.reps, carga: Number(k) || 0 })}
-        className="ml-auto px-2.5 py-1.5 rounded-lg text-xs font-semibold" style={{ background: c.accent, color: c.accentInk }}>ok</button>
-      <button type="button" onClick={cancelar} className="px-2 py-1.5 rounded-lg text-xs" style={{ background: c.surface2, color: c.muted }}>×</button>
+        className="px-3 h-8 rounded-lg text-sm font-bold" style={{ background: c.accent, color: c.accentInk }}>ok</button>
     </div>
   );
 }
@@ -1805,8 +1994,8 @@ function ModalFinalizado({ c, info, fechar, cardio }) {
     <div className="fixed inset-0 z-40 flex items-center justify-center px-6" style={{ background: "rgba(0,0,0,0.65)" }} onClick={fechar}>
       <div className="w-full max-w-sm rounded-3xl p-6 text-center" style={{ background: c.surface }} onClick={(e) => e.stopPropagation()}>
         <div className="text-4xl mb-2">🏁</div>
-        <h2 className="text-xl font-bold leading-tight" style={{ fontFamily: MONO }}>
-          TREINO {treino} {parcial ? "ENCERRADO" : "FINALIZADO"}!
+        <h2 className="text-2xl font-extrabold leading-tight tracking-tight">
+          Treino {treino} {parcial ? "encerrado" : "finalizado"}!
         </h2>
         <p className="mt-1 font-semibold" style={{ color: parcial ? c.muted : c.ok }}>
           {parcial ? "contou como treino do dia" : "parabéns"}
@@ -1817,7 +2006,7 @@ function ModalFinalizado({ c, info, fechar, cardio }) {
             {[["séries", nSeries || 0], ["volume", `${Math.round(volume || 0)} kg`], ["duração", fmtDur(duracao || 0)]].map(([k, v]) => (
               <div key={k} className="py-2.5 rounded-xl" style={{ background: c.surface2 }}>
                 <div className="text-base font-bold" style={{ fontFamily: MONO }}>{v}</div>
-                <div className="text-[10px] uppercase tracking-widest" style={{ color: c.muted, fontFamily: MONO }}>{k}</div>
+                <div className="text-[11px] font-semibold" style={{ color: c.muted }}>{k}</div>
               </div>
             ))}
           </div>
@@ -1838,35 +2027,44 @@ function ModalFinalizado({ c, info, fechar, cardio }) {
   );
 }
 
-function Stepper({ c, rotulo, valor, setValor, passo, min, ajusta }) {
+function Stepper({ c, rotulo, valor, setValor, passo, min, ajusta, dica, dicaCor }) {
   const muda = (d) => setValor((v) => String(Math.max(min, Number((ajusta
     ? ajusta(Number(v || 0), Math.sign(d))
     : Number(v || 0) + d).toFixed(2)))));
+  const botao = { background: c.surface, color: c.ink, boxShadow: c.sombra === "none" ? "none" : "0 1px 2px rgba(0,0,0,.08)" };
   return (
-    <div className="rounded-xl px-2 pt-4 pb-2 relative" style={{ background: c.surface2, border: `1px solid ${c.line}` }}>
-      <div className="absolute -top-2 left-3 px-1 text-[9px] uppercase tracking-widest"
-        style={{ color: c.muted, fontFamily: MONO, background: c.raised }}>{rotulo}</div>
-      <div className="flex items-center justify-between">
-        <button type="button" onClick={() => muda(-passo)} className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
-          style={{ background: c.surface, color: c.ink }} aria-label={`Diminuir ${rotulo}`}><Minus size={16} /></button>
+    <div className="rounded-2xl px-2 pt-2 pb-2" style={{ background: c.surface2 }}>
+      <div className="text-[11px] font-bold uppercase tracking-wide text-center" style={{ color: c.muted }}>{rotulo}</div>
+      <div className="flex items-center justify-between gap-1 mt-0.5">
+        <button type="button" onClick={() => muda(-passo)} className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+          style={botao} aria-label={`Diminuir ${rotulo}`}><Minus size={18} strokeWidth={2.5} /></button>
         <input value={valor} inputMode="decimal" onFocus={(e) => e.target.select()}
           onChange={(e) => setValor(e.target.value.replace(",", "."))}
-          className="w-full text-center text-2xl font-bold bg-transparent outline-none"
-          style={{ fontFamily: MONO, color: c.ink }} />
-        <button type="button" onClick={() => muda(passo)} className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
-          style={{ background: c.surface, color: c.ink }} aria-label={`Aumentar ${rotulo}`}><Plus size={16} /></button>
+          className="w-full min-w-0 text-center text-[30px] font-extrabold bg-transparent outline-none tracking-tight"
+          style={{ color: c.ink }} aria-label={rotulo} />
+        <button type="button" onClick={() => muda(passo)} className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+          style={botao} aria-label={`Aumentar ${rotulo}`}><Plus size={18} strokeWidth={2.5} /></button>
       </div>
+      <div className="text-[11px] font-medium text-center h-4" style={{ color: dicaCor || c.muted }}>{dica || ""}</div>
     </div>
   );
 }
 
 /* ------------------------------------------------------------ tela 3 */
 
+const COLS_HIST = "1.1fr 1fr .9fr .8fr 1.1fr";
+
 function TelaHistorico({ c, series }) {
   const exercicios = useMemo(() => [...new Set(series.map((s) => s.exercicio))].sort(), [series]);
   const [sel, setSel] = useState("");
   const [metrica, setMetrica] = useState("carga"); // carga | volume
-  useEffect(() => { if (!sel && exercicios.length) setSel(exercicios[0]); }, [exercicios, sel]);
+  const chipsRef = useRef(null);
+  useEffect(() => { centralizarAtivo(chipsRef.current); }, [sel]);
+  useEffect(() => {
+    if (sel || !exercicios.length) return;
+    const recente = [...series].filter((s) => Number(s.carga) > 0).sort((a, b) => String(b.data).localeCompare(String(a.data)))[0];
+    setSel(recente?.exercicio || exercicios[0]);
+  }, [exercicios, sel, series]);
 
   const porDia = useMemo(() => {
     const m = new Map();
@@ -1892,9 +2090,10 @@ function TelaHistorico({ c, series }) {
 
   return (
     <div className="px-4 space-y-4">
-      <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+      <div ref={chipsRef} className="relative flex gap-2 overflow-x-auto sem-barra pb-1 -mx-4 px-4">
         {exercicios.map((e) => (
           <button type="button" key={e} onClick={() => setSel(e)}
+            data-ativo={e === sel ? "1" : undefined}
             className="shrink-0 px-3 py-2 rounded-full text-sm whitespace-nowrap"
             style={{
               background: e === sel ? c.accent : c.surface, color: e === sel ? c.accentInk : c.ink,
@@ -1903,7 +2102,7 @@ function TelaHistorico({ c, series }) {
         ))}
       </div>
 
-      <div className="p-4 rounded-2xl" style={{ background: c.surface, border: `1px solid ${c.line}` }}>
+      <div className="p-4 rounded-2xl" style={{ background: c.surface, boxShadow: c.sombra }}>
         <div className="flex items-center justify-between mb-3">
           <div className="flex rounded-lg overflow-hidden" style={{ border: `1px solid ${c.line}` }}>
             {["carga", "volume"].map((m) => (
@@ -1937,15 +2136,15 @@ function TelaHistorico({ c, series }) {
         </div>
       </div>
 
-      <div className="rounded-2xl overflow-hidden" style={{ background: c.surface, border: `1px solid ${c.line}` }}>
-        <div className="grid grid-cols-6 px-4 py-2 text-xs uppercase tracking-widest"
-          style={{ color: c.muted, fontFamily: MONO, borderBottom: `1px solid ${c.line}` }}>
-          <span className="col-span-2">data</span><span className="text-right">carga</span>
-          <span className="text-right">séries</span><span className="text-right">reps</span><span className="text-right">vol</span>
+      <div className="rounded-2xl overflow-hidden" style={{ background: c.surface, boxShadow: c.sombra }}>
+        <div className="grid gap-2 px-4 py-2 text-[11px] font-bold uppercase tracking-wide"
+          style={{ gridTemplateColumns: COLS_HIST, color: c.muted, borderBottom: `1px solid ${c.line}` }}>
+          <span>data</span><span className="text-right">kg</span>
+          <span className="text-right">séries</span><span className="text-right">reps</span><span className="text-right">volume</span>
         </div>
         {ultimos5.map((d) => (
-          <div key={d.data} className="grid grid-cols-6 px-4 py-3 text-sm" style={{ fontFamily: MONO }}>
-            <span className="col-span-2">{dataBR(d.data)}</span>
+          <div key={d.data} className="grid gap-2 px-4 py-3 text-sm" style={{ gridTemplateColumns: COLS_HIST }}>
+            <span className="font-medium">{dataBR(d.data).slice(0, 5)}</span>
             <span className="text-right font-semibold">{d.carga}</span>
             <span className="text-right" style={{ color: c.muted }}>{d.series}</span>
             <span className="text-right" style={{ color: c.muted }}>{d.reps}</span>
@@ -1972,7 +2171,7 @@ function TelaMarcos({ c, marcos, setMarcos }) {
 
   return (
     <div className="px-4 space-y-4">
-      <div className="p-4 rounded-2xl" style={{ background: c.surface, border: `1px solid ${c.line}` }}>
+      <div className="p-4 rounded-2xl" style={{ background: c.surface, boxShadow: c.sombra }}>
         <div className="flex items-center justify-between mb-3">
           <button type="button" onClick={() => setMes(new Date(mes.getFullYear(), mes.getMonth() - 1, 1))} className="p-2"><ChevronLeft size={18} /></button>
           <span className="font-semibold capitalize">{nomeMes}</span>
@@ -2012,7 +2211,7 @@ function TelaMarcos({ c, marcos, setMarcos }) {
         <div className="space-y-2">
           {doMes.sort((a, b) => a.data.localeCompare(b.data)).map((m) => (
             <div key={m.data} className="flex items-center gap-3 px-4 py-3 rounded-xl"
-              style={{ background: c.surface, border: `1px solid ${c.line}` }}>
+              style={{ background: c.surface, boxShadow: c.sombra }}>
               <Flag size={16} style={{ color: TIPOS_MARCO.find((t) => t.id === m.tipo).cor }} />
               <div className="flex-1 min-w-0">
                 <div className="text-sm font-medium">{TIPOS_MARCO.find((t) => t.id === m.tipo).label}</div>
@@ -2062,40 +2261,37 @@ function TelaMarcos({ c, marcos, setMarcos }) {
 
 /* ------------------------------------------------------------- aquecimento */
 
-function CardAquecimento({ c, aq, feitos, toggle, iniciouSeries }) {
-  const [aberto, setAberto] = useState(!iniciouSeries);
+function CardAquecimento({ c, aq, feitos, toggle }) {
+  const [aberto, setAberto] = useState(false);
   const total = aq.itens.length;
   const ok = feitos.length >= total;
   return (
-    <div className="rounded-2xl overflow-hidden" style={{ background: c.surface, border: `1px solid ${ok ? c.ok : c.line}` }}>
+    <div className="rounded-3xl overflow-hidden" style={{ background: c.surface, boxShadow: c.sombra }}>
       <button type="button" onClick={() => setAberto((a) => !a)} className="w-full flex items-center gap-2.5 px-4 py-3 text-left">
-        <Flame size={16} style={{ color: ok ? c.ok : c.warn, flexShrink: 0 }} />
+        <Flame size={17} style={{ color: ok ? c.ok : c.warn, flexShrink: 0 }} />
         <span className="flex-1 text-sm font-semibold">
-          {aq.titulo} <span style={{ color: c.muted, fontFamily: MONO, fontWeight: 400 }}>· {aq.duracao}</span>
+          Aquecimento <span style={{ color: c.muted, fontWeight: 500 }}>· {aq.duracao}</span>
         </span>
-        <span className="text-xs" style={{ color: ok ? c.ok : c.muted, fontFamily: MONO }}>{feitos.length}/{total}</span>
+        <span className="text-xs font-bold" style={{ color: ok ? c.ok : c.muted }}>{ok ? "feito" : `${feitos.length}/${total}`}</span>
         <ChevronDown size={16} style={{ color: c.muted, transform: aberto ? "rotate(180deg)" : "none", transition: "transform .15s" }} />
       </button>
       {aberto && (
-        <div className="px-4 pb-3" style={{ borderTop: `1px solid ${c.line}` }}>
+        <div className="px-4 pb-3.5" style={{ borderTop: `1px solid ${c.line}` }}>
           {aq.itens.map((it, i) => {
             const f = feitos.includes(i);
             return (
-              <button type="button" key={i} onClick={() => toggle(i)} className="w-full flex items-start gap-3 pt-2.5 text-left">
+              <button type="button" key={i} onClick={() => toggle(i)} className="w-full flex items-start gap-3 pt-3 text-left">
                 <span className="w-5 h-5 rounded-md flex items-center justify-center shrink-0 mt-0.5"
-                  style={{ background: f ? c.ok : c.surface2, border: `1px solid ${f ? c.ok : c.line}` }}>
-                  {f && <Check size={13} color="#fff" />}
+                  style={{ background: f ? c.ok : "transparent", border: `1.5px solid ${f ? c.ok : c.line}` }}>
+                  {f && <Check size={13} strokeWidth={3} color="#fff" />}
                 </span>
-                <span className="text-sm">
-                  <b style={{ color: f ? c.muted : c.ink }}>{it.nome}</b>
-                  <span style={{ color: c.muted }}> — {it.detalhe}</span>
+                <span className="text-sm leading-snug">
+                  <b style={{ color: f ? c.muted : c.ink, textDecoration: f ? "line-through" : "none" }}>{it.nome}</b>
+                  <span className="block" style={{ color: c.muted }}>{it.detalhe}</span>
                 </span>
               </button>
             );
           })}
-          <p className="text-[11px] pt-3" style={{ color: c.muted }}>
-            Sem alongamento estático longo antes do treino: segurar 60 s ou mais por músculo tira um pouco de força. Se quiser alongar, deixe para depois.
-          </p>
         </div>
       )}
     </div>
@@ -2104,29 +2300,30 @@ function CardAquecimento({ c, aq, feitos, toggle, iniciouSeries }) {
 
 /* ------------------------------------------------------------- cardio */
 
-function CardCardio({ c, cardios, registrar, remover }) {
+function CardCardio({ c, cardios, registrar, remover, embutido }) {
   const rec = cardioDoDia();
   if (!rec) return null;
   const deHoje = cardios.filter((x) => x.data === hoje());
   const feito = deHoje.length > 0;
   const nome = TIPO_CARDIO[rec.tipo] || rec.tipo;
   return (
-    <div className="flex items-center gap-3 p-4 rounded-2xl" style={{ background: c.surface, border: `1px solid ${feito ? c.ok : c.line}` }}>
-      <div className="w-14 h-14 rounded-xl flex items-center justify-center shrink-0" style={{ background: c.surface2 }}>
-        <Bike size={24} style={{ color: feito ? c.ok : c.ink }} />
+    <div className={`flex items-center gap-3 ${embutido ? "px-5 py-3.5" : "p-4 rounded-3xl"}`}
+      style={embutido ? { borderTop: `1px solid ${c.line}` } : { background: c.surface, boxShadow: c.sombra }}>
+      <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: feito ? `${c.ok}1F` : c.surface2 }}>
+        <Bike size={20} style={{ color: feito ? c.ok : c.ink }} />
       </div>
       <div className="flex-1 min-w-0">
-        <div className="font-semibold">{nome} · <span style={{ fontFamily: MONO }}>{rec.min} min</span></div>
-        <div className="text-sm" style={{ color: feito ? c.ok : c.muted }}>
-          {feito ? "feito hoje" : rec.opcional ? "opcional · só se tiver vontade" : rec.nota || "zona 2 · depois da musculação"}
+        <div className="text-[15px] font-semibold">{nome} · {rec.min} min</div>
+        <div className="text-xs" style={{ color: feito ? c.ok : c.muted }}>
+          {feito ? "feito hoje" : rec.opcional ? "opcional" : rec.nota || "zona 2 · depois da musculação"}
         </div>
       </div>
       <button type="button"
         onClick={() => (feito ? deHoje.forEach((x) => remover(x.id)) : registrar({ tipo: rec.tipo, minutos: rec.min }))}
-        className="px-4 py-2.5 rounded-xl text-sm font-semibold shrink-0 flex items-center gap-1.5"
-        style={{ background: feito ? c.ok : c.accent, color: feito ? "#fff" : c.accentInk }}
+        className="px-4 py-2 rounded-xl text-sm font-bold shrink-0 flex items-center gap-1.5"
+        style={feito ? { background: `${c.ok}1F`, color: c.ok } : embutido ? { background: c.surface2, color: c.ink } : { background: c.accent, color: c.accentInk }}
         aria-label={feito ? "Desfazer cardio" : "Marcar cardio como feito"}>
-        {feito ? <><Check size={16} /> Feito</> : "Fiz"}
+        {feito ? <><Check size={16} strokeWidth={3} /> Feito</> : "Fiz"}
       </button>
     </div>
   );
@@ -2200,8 +2397,8 @@ function TelaCorpo({ c, pesos, setPesos }) {
           ["vs semana ant.", delta != null ? `${delta > 0 ? "+" : ""}${fmt1(delta)}` : "—",
             pctSemana != null ? `${pctSemana > 0 ? "+" : ""}${pctSemana.toFixed(1).replace(".", ",")}%` : "precisa de 2 semanas"],
         ].map(([k, v, sub]) => (
-          <div key={k} className="p-3 rounded-2xl" style={{ background: c.surface, border: `1px solid ${c.line}` }}>
-            <div className="text-[10px] uppercase tracking-widest" style={{ color: c.muted, fontFamily: MONO }}>{k}</div>
+          <div key={k} className="p-3 rounded-2xl" style={{ background: c.surface, boxShadow: c.sombra }}>
+            <div className="text-[11px] font-semibold" style={{ color: c.muted }}>{k}</div>
             <div className="text-xl font-bold mt-1" style={{ fontFamily: MONO }}>{v}</div>
             <div className="text-[11px]" style={{ color: c.muted, fontFamily: MONO }}>{sub}</div>
           </div>
@@ -2235,7 +2432,7 @@ function TelaCorpo({ c, pesos, setPesos }) {
       </div>
 
       {grafico.length > 1 && (
-        <div className="p-4 rounded-2xl" style={{ background: c.surface, border: `1px solid ${c.line}` }}>
+        <div className="p-4 rounded-2xl" style={{ background: c.surface, boxShadow: c.sombra }}>
           <div className="flex items-center gap-4 text-xs mb-2" style={{ color: c.muted, fontFamily: MONO }}>
             <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full" style={{ background: c.muted }} />dia</span>
             <span className="flex items-center gap-1.5"><span className="w-3 h-0.5 rounded" style={{ background: c.accent }} />média 7 dias</span>
@@ -2273,7 +2470,7 @@ function TelaCorpo({ c, pesos, setPesos }) {
       )}
 
       {ordenados.length > 0 && (
-        <div className="rounded-2xl overflow-hidden" style={{ background: c.surface, border: `1px solid ${c.line}` }}>
+        <div className="rounded-2xl overflow-hidden" style={{ background: c.surface, boxShadow: c.sombra }}>
           {[...ordenados].reverse().slice(0, 14).map((p, i) => (
             <div key={p.id || p.data} className="flex items-center gap-3 px-4 py-2.5 text-sm"
               style={{ fontFamily: MONO, borderTop: i ? `1px solid ${c.line}` : "none" }}>
@@ -2320,8 +2517,8 @@ const REFERENCIAS = [
 
 function Secao({ c, titulo, children }) {
   return (
-    <div className="p-4 rounded-2xl" style={{ background: c.surface, border: `1px solid ${c.line}` }}>
-      <div className="text-xs uppercase tracking-widest mb-2" style={{ color: c.muted, fontFamily: MONO }}>{titulo}</div>
+    <div className="p-4 rounded-2xl" style={{ background: c.surface, boxShadow: c.sombra }}>
+      <div className="text-xs uppercase tracking-wide mb-2" style={{ color: c.muted, fontFamily: MONO }}>{titulo}</div>
       {children}
     </div>
   );
@@ -2456,13 +2653,13 @@ function BarraTimer({ c, restante, total, pausado, acabou, alternar, mais, fecha
   const r = (size - stroke) / 2;
   const circ = 2 * Math.PI * r;
   const off = total ? circ * (1 - Math.min(1, restante / total)) : circ;
-  const cor = acabou ? c.pr : c.accent;
+  const cor = acabou ? c.ok : c.accent;
   return (
     <div className="fixed left-0 right-0 z-20"
       style={{ bottom: comPilula ? "max(7.5rem, calc(7.5rem + env(safe-area-inset-bottom)))" : "max(4.5rem, calc(4.5rem + env(safe-area-inset-bottom)))" }}>
       <div className="max-w-md mx-auto px-4">
         <div className="rounded-2xl flex items-center gap-3 px-4 py-3"
-          style={{ background: c.surface, border: `1px solid ${acabou ? c.pr : c.line}`, boxShadow: "0 10px 30px -12px rgba(0,0,0,.4)" }}>
+          style={{ background: c.surface, border: `1.5px solid ${acabou ? c.ok : c.line}`, boxShadow: "0 10px 30px -12px rgba(0,0,0,.4)" }}>
           <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="shrink-0" aria-hidden="true">
             <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={c.surface2} strokeWidth={stroke} />
             <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={cor} strokeWidth={stroke}
@@ -2470,10 +2667,10 @@ function BarraTimer({ c, restante, total, pausado, acabou, alternar, mais, fecha
               transform={`rotate(-90 ${size / 2} ${size / 2})`} style={{ transition: "stroke-dashoffset .5s linear" }} />
           </svg>
           <div>
-            <div className="text-2xl font-bold tabular-nums leading-none" style={{ fontFamily: MONO, color: acabou ? c.pr : c.ink }} aria-live="polite">
+            <div className="text-2xl font-bold tabular-nums leading-none" style={{ color: acabou ? c.ok : c.ink }} aria-live="polite">
               {mmss(restante)}
             </div>
-            <div className="text-[11px] uppercase tracking-widest mt-0.5" style={{ color: c.muted, fontFamily: MONO }}>
+            <div className="text-[11px] uppercase tracking-wide mt-0.5" style={{ color: c.muted, fontFamily: MONO }}>
               {acabou ? "descanso acabou" : pausado ? "pausado" : "descanso"}
             </div>
           </div>
@@ -2516,25 +2713,25 @@ function PilulaSessao({ c, sessao, onClick }) {
   );
 }
 
-function Abas({ c, aba, setAba, sessao }) {
+function Abas({ c, aba, setAba }) {
   const itens = [
-    { id: "treinos", icone: Dumbbell, label: "Treinos" },
+    { id: "treinos", icone: Dumbbell, label: "Hoje" },
     { id: "historico", icone: History, label: "Histórico" },
     { id: "corpo", icone: Scale, label: "Corpo" },
-    { id: "marcos", icone: CalendarDays, label: "Marcos" },
-    { id: "guia", icone: BookOpen, label: "Guia" },
+    { id: "mais", icone: MoreHorizontal, label: "Mais", tambem: ["marcos", "guia"] },
   ];
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-30" style={{ background: c.surface, borderTop: `1px solid ${c.line}` }}>
-      <div className="max-w-md mx-auto grid grid-cols-5" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
+    <nav className="fixed bottom-0 left-0 right-0 z-30"
+      style={{ background: `${c.surface}F2`, borderTop: `1px solid ${c.line}`, backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)" }}>
+      <div className="max-w-md mx-auto grid grid-cols-4" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
         {itens.map((i) => {
           const Icone = i.icone;
-          const ativo = aba === i.id || (i.id === "treinos" && aba === "sessao");
+          const ativo = aba === i.id || (i.id === "treinos" && aba === "sessao") || i.tambem?.includes(aba);
           return (
             <button type="button" key={i.id} onClick={() => setAba(i.id)}
-              className="flex flex-col items-center gap-0.5 py-2.5" style={{ color: ativo ? c.accent : c.muted }}>
-              <Icone size={20} />
-              <span className="text-[10px]">{i.label}</span>
+              className="flex flex-col items-center gap-1 pt-2.5 pb-2" style={{ color: ativo ? c.accent : c.muted }}>
+              <Icone size={22} strokeWidth={ativo ? 2.4 : 2} />
+              <span className="text-[11px] font-semibold">{i.label}</span>
             </button>
           );
         })}
