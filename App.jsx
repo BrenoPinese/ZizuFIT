@@ -6,7 +6,7 @@ import {
   Dumbbell, History, CalendarDays, Play, Check, Plus, Minus,
   ChevronLeft, ChevronRight, Timer, Sun, Moon, X, Flag, Video, Flame, Info,
   Trash2, ArrowRight, MoreVertical, Download, Upload, Pencil, Activity,
-  Scale, BookOpen, Bike, ChevronDown, MoreHorizontal, Smartphone, SkipForward,
+  Scale, BookOpen, Bike, ChevronDown, MoreHorizontal, Smartphone, SkipForward, Pause,
 } from "lucide-react";
 
 /* ---------------------------------------------------------------- tokens
@@ -67,7 +67,7 @@ const CORES_DESTAQUE = {
   azul: { nome: "Azul", porque: "calma e foco (a cor antiga)",
     dark: { accent: "#4C86F5", accentInk: "#0B0D10" }, light: { accent: "#1E5BC6", accentInk: "#FFFFFF" } },
 };
-const VERSAO_APP = 16;
+const VERSAO_APP = 17;
 
 const SANS = '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
 const MONO = SANS; /* números: Inter com algarismos tabulares (ver useFonte) */
@@ -497,7 +497,11 @@ function chave(texto) {
 }
 
 /* "Voador (Peck Deck)" → "Voador"; "Crucifixo Invertido na Polia" → "Crucifixo Invertido" */
-const nomeCurto = (n) => (n.replace(/\s*\(.*?\)/g, "").trim() || n).split(" ").slice(0, 2).join(" ");
+const LIGACOES = new Set(["no", "na", "nos", "nas", "com", "c/", "de", "do", "da", "em"]);
+const nomeCurto = (n) => {
+  const p = (n.replace(/\s*\(.*?\)/g, "").trim() || n).split(" ");
+  return p.slice(0, LIGACOES.has((p[1] || "").toLowerCase()) ? 3 : 2).join(" ");
+};
 
 /* faixa de reps a partir do texto do programa: "8-10" -> [8,10];
    "12" -> [12,12]; "60s" / "10-12 cada perna" -> tenta o par, senão null */
@@ -768,6 +772,7 @@ export default function AppTreino() {
         setSeries(seriesCarregadas);
         setConclusoes(conclusoesCarregadas);
         setSessao(sessaoCarregada);
+        if (sessaoCarregada) setAba("sessao");
 
         if (d.fimEm) {
           if (d.pausadoEm) {
@@ -880,6 +885,9 @@ export default function AppTreino() {
 
   useEffect(() => { if (!carregando) salvar(); }, [series, marcos, conclusoes, pesos, cardios, descanso, sessao, modoTema, corDestaque, treinos, fimEm, pausadoEm, carregando]); // eslint-disable-line
 
+  /* toda troca de aba começa no topo */
+  useEffect(() => { window.scrollTo(0, 0); }, [aba]);
+
   const registrarCardio = ({ tipo, minutos }) => {
     setCardios((a) => [...a, { id: uid(), data: hoje(), tipo, minutos }]);
     mostrarAviso(`Cardio registrado: ${(TIPO_CARDIO[tipo] || tipo).toLowerCase()}, ${minutos} min.`);
@@ -953,6 +961,7 @@ export default function AppTreino() {
     );
     setSessao(null);
     fecharDescanso();
+    setAba("treinos");
     setTreinoFinalizado({ treino: idTreino, auto, parcial, volume, duracao, series: doDia.length });
   };
 
@@ -1118,10 +1127,10 @@ export default function AppTreino() {
       </div>
 
       {aviso && (
-        <div className="fixed left-0 right-0 z-50 pointer-events-none" style={{ top: "max(0.75rem, env(safe-area-inset-top))" }}>
+        <div className="fixed left-0 right-0 z-50 pointer-events-none"
+          style={{ top: emSessao ? "calc(max(0.5rem, env(safe-area-inset-top)) + 3.6rem)" : "max(0.75rem, env(safe-area-inset-top))" }}>
           <div className="max-w-md mx-auto px-4">
-            <div className="px-4 py-3 rounded-2xl text-sm font-medium pointer-events-auto"
-              onClick={() => setAviso(null)}
+            <div className="px-4 py-3 rounded-2xl text-sm font-medium"
               style={{ background: c.ink, color: c.bg, boxShadow: "0 12px 30px -10px rgba(0,0,0,.45)" }}>{aviso}</div>
           </div>
         </div>
@@ -1525,11 +1534,11 @@ function TelaSessao({ c, sessao, setSessao, treinos, series, registrar, encerrar
   const [carga, setCarga] = useState("");
   const [obs, setObs] = useState("");
   const [erro, setErro] = useState("");
-  const [videoAberto, setVideoAberto] = useState(false);
   const [menu, setMenu] = useState(false);
   const [editId, setEditId] = useState(null);
   const [info, setInfo] = useState(false);
   const [notaAberta, setNotaAberta] = useState(false);
+  const [confirmaFim, setConfirmaFim] = useState(false);
   const pilulasRef = useRef(null);
 
   /* cronômetro do treino */
@@ -1592,7 +1601,6 @@ function TelaSessao({ c, sessao, setSessao, treinos, series, registrar, encerrar
     setCarga(String(ultHoje ? ultHoje.carga : retorno ? cargaRetorno(anterior.carga, ex) : (anterior ? anterior.carga : ex.alvo)));
     setReps(String(ultHoje ? ultHoje.reps : (parseInt(ex.reps, 10) || 10)));
     setErro("");
-    setVideoAberto(false);
     setEditId(null);
     setInfo(false);
     setNotaAberta(false);
@@ -1647,7 +1655,7 @@ function TelaSessao({ c, sessao, setSessao, treinos, series, registrar, encerrar
               {fmtDur(decorrido)} · {seriesFeitasHoje}/{totalSeriesPlano} séries
             </div>
           </div>
-          <button type="button" onClick={() => setMenu((m) => !m)} className="w-10 h-10 flex items-center justify-center rounded-full" aria-label="Opções do treino">
+          <button type="button" onClick={() => { setMenu((m) => !m); setConfirmaFim(false); }} className="w-10 h-10 flex items-center justify-center rounded-full" aria-label="Opções do treino">
             <MoreHorizontal size={22} />
           </button>
           {menu && (
@@ -1655,9 +1663,9 @@ function TelaSessao({ c, sessao, setSessao, treinos, series, registrar, encerrar
               <div className="fixed inset-0 z-30" onClick={() => setMenu(false)} />
               <div className="absolute right-3 top-12 z-40 w-52 rounded-2xl overflow-hidden"
                 style={{ background: c.surface, border: `1px solid ${c.line}`, boxShadow: "0 16px 40px -12px rgba(0,0,0,.45)" }}>
-                <button type="button" onClick={() => { setMenu(false); encerrar(); }}
+                <button type="button" onClick={() => { if (!confirmaFim) return setConfirmaFim(true); setMenu(false); encerrar(); }}
                   className="w-full flex items-center gap-2.5 px-4 py-3.5 text-sm font-medium text-left" style={{ color: c.pr }}>
-                  <Flag size={16} /> Encerrar treino agora
+                  <Flag size={16} /> {confirmaFim ? "Toque de novo para encerrar" : "Encerrar treino agora"}
                 </button>
                 <button type="button" onClick={() => { setMenu(false); onExportar(); }}
                   className="w-full flex items-center gap-2.5 px-4 py-3.5 text-sm font-medium text-left"
@@ -1734,7 +1742,11 @@ function TelaSessao({ c, sessao, setSessao, treinos, series, registrar, encerrar
           <div className="flex items-start gap-2 mt-1">
             <h2 className="flex-1 text-[22px] font-extrabold leading-tight tracking-tight">{ex.nome}</h2>
             <BotaoIcone c={c} icone={Info} onClick={() => setInfo((v) => !v)} ativo={info} rotulo="Dicas do exercício" />
-            <BotaoIcone c={c} icone={Video} onClick={() => setVideoAberto(true)} rotulo="Ver vídeo" />
+            <a href={`https://www.youtube.com/results?search_query=${encodeURIComponent(`${ex.nome} execução técnica academia`)}`}
+              target="_blank" rel="noreferrer" aria-label="Ver vídeo no YouTube" title="Ver vídeo no YouTube"
+              className="w-9 h-9 rounded-full flex items-center justify-center shrink-0" style={{ background: c.surface2, color: c.ink }}>
+              <Video size={18} />
+            </a>
           </div>
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 mt-1.5 text-sm" style={{ color: c.muted }}>
             <span><b style={{ color: c.ink }}>{ex.series} × {ex.reps}</b>{/^[\d\s–-]+$/.test(String(ex.reps)) ? " reps" : ""}</span>
@@ -1885,7 +1897,6 @@ function TelaSessao({ c, sessao, setSessao, treinos, series, registrar, encerrar
         </div>
       </div>
 
-      {videoAberto && <ModalVideo c={c} exercicio={ex.nome} fechar={() => setVideoAberto(false)} />}
     </div>
   );
 }
@@ -1901,40 +1912,39 @@ function centralizarAtivo(box) {
 
 /* descanso em destaque, dentro da tela do treino */
 function TimerGrande({ c, restante, total, pausado, acabou, alternar, mais, fechar, proximo }) {
-  const size = 58, stroke = 5;
+  const size = 46, stroke = 4.5;
   const r = (size - stroke) / 2;
   const circ = 2 * Math.PI * r;
   const off = total ? circ * (1 - Math.min(1, restante / total)) : circ;
   const cor = acabou ? c.ok : c.accent;
+  const btn = "h-11 rounded-xl text-sm font-bold flex items-center justify-center shrink-0";
   return (
-    <div className="rounded-3xl p-3.5"
+    <div className="rounded-3xl pl-3 pr-2 py-2 flex items-center gap-2.5"
       style={{ background: c.surface, border: `1.5px solid ${acabou ? c.ok : c.line}`, boxShadow: "0 16px 40px -16px rgba(0,0,0,.5)" }}>
-      <div className="flex items-center gap-3.5">
-        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="shrink-0" aria-hidden="true">
-          <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={c.surface2} strokeWidth={stroke} />
-          <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={cor} strokeWidth={stroke}
-            strokeLinecap="round" strokeDasharray={circ} strokeDashoffset={acabou ? 0 : off}
-            transform={`rotate(-90 ${size / 2} ${size / 2})`} style={{ transition: "stroke-dashoffset .5s linear" }} />
-        </svg>
-        <div className="flex-1 min-w-0">
-          <div className="text-[38px] font-extrabold leading-none tracking-tight" style={{ color: acabou ? c.ok : c.ink }} aria-live="polite">
-            {acabou ? "Bora!" : mmss(restante)}
-          </div>
-          <div className="text-xs font-semibold mt-1 truncate" style={{ color: c.muted }}>
-            {acabou ? "descanso acabou" : pausado ? "pausado" : "descanso"}{proximo ? ` · próxima: ${proximo}` : ""}
-          </div>
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="shrink-0" aria-hidden="true">
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={c.surface2} strokeWidth={stroke} />
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={cor} strokeWidth={stroke}
+          strokeLinecap="round" strokeDasharray={circ} strokeDashoffset={acabou ? 0 : off}
+          transform={`rotate(-90 ${size / 2} ${size / 2})`} style={{ transition: "stroke-dashoffset .5s linear" }} />
+      </svg>
+      <div className="flex-1 min-w-0">
+        <div className="text-[30px] font-extrabold leading-none tracking-tight" style={{ color: acabou ? c.ok : c.ink }} aria-live="polite">
+          {acabou ? "Bora!" : mmss(restante)}
+        </div>
+        <div className="text-[11px] font-semibold mt-0.5 truncate" style={{ color: c.muted }}>
+          {acabou ? "descanso acabou" : pausado ? "pausado" : proximo ? `próxima: ${proximo}` : "descanso"}
         </div>
       </div>
-      <div className="grid grid-cols-3 gap-2 mt-3">
-        <button type="button" onClick={mais} className="py-2.5 rounded-xl text-sm font-bold" style={{ background: c.surface2 }}>+15s</button>
-        <button type="button" onClick={acabou ? fechar : alternar} className="py-2.5 rounded-xl text-sm font-bold" style={{ background: c.surface2 }}>
-          {acabou ? "Fechar" : pausado ? "Seguir" : "Pausar"}
+      <button type="button" onClick={mais} className={`${btn} px-2.5`} style={{ background: c.surface2 }} aria-label="Mais 15 segundos">+15s</button>
+      {!acabou && (
+        <button type="button" onClick={alternar} className={`${btn} w-11`} style={{ background: c.surface2 }} aria-label={pausado ? "Seguir" : "Pausar"}>
+          {pausado ? <Play size={17} fill="currentColor" /> : <Pause size={17} fill="currentColor" />}
         </button>
-        <button type="button" onClick={fechar} className="py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-1"
-          style={{ background: c.surface2 }}>
-          Pular <SkipForward size={14} />
-        </button>
-      </div>
+      )}
+      <button type="button" onClick={fechar} className={`${btn} ${acabou ? "px-3" : "w-11"}`}
+        style={{ background: acabou ? c.ok : c.surface2, color: acabou ? "#fff" : c.ink }} aria-label={acabou ? "Fechar" : "Pular descanso"}>
+        {acabou ? "Fechar" : <SkipForward size={17} />}
+      </button>
     </div>
   );
 }
@@ -1959,30 +1969,6 @@ function EditRow({ c, s, salvar, remover, cancelar }) {
       </button>
       <button type="button" onClick={() => salvar({ reps: Number(r) || s.reps, carga: Number(k) || 0 })}
         className="px-3 h-8 rounded-lg text-sm font-bold" style={{ background: c.accent, color: c.accentInk }}>ok</button>
-    </div>
-  );
-}
-
-function ModalVideo({ c, exercicio, fechar }) {
-  const busca = `${exercicio} execução técnica academia`;
-  const urlBusca = `https://www.youtube.com/results?search_query=${encodeURIComponent(busca)}`;
-  const urlEmbed = `https://www.youtube.com/embed?listType=search&list=${encodeURIComponent(busca)}`;
-  return (
-    <div className="fixed inset-0 z-40 flex items-end justify-center" style={{ background: "rgba(0,0,0,0.6)" }} onClick={fechar}>
-      <div className="w-full max-w-md rounded-t-2xl overflow-hidden" style={{ background: c.surface }} onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: `1px solid ${c.line}` }}>
-          <span className="font-semibold text-sm truncate pr-2">{exercicio}</span>
-          <button type="button" onClick={fechar} aria-label="Fechar"><X size={20} style={{ color: c.muted }} /></button>
-        </div>
-        <div style={{ aspectRatio: "16/9", background: "#000" }}>
-          <iframe src={urlEmbed} title={`Vídeo de ${exercicio}`} allow="autoplay; encrypted-media" allowFullScreen
-            style={{ width: "100%", height: "100%", border: 0 }} />
-        </div>
-        <div className="px-4 py-3 text-xs" style={{ color: c.muted }}>
-          Se o vídeo não carregar aqui dentro,{" "}
-          <a href={urlBusca} target="_blank" rel="noreferrer" style={{ color: c.accent }}>abra a busca direto no YouTube</a>.
-        </div>
-      </div>
     </div>
   );
 }
@@ -2035,14 +2021,14 @@ function Stepper({ c, rotulo, valor, setValor, passo, min, ajusta, dica, dicaCor
   return (
     <div className="rounded-2xl px-2 pt-2 pb-2" style={{ background: c.surface2 }}>
       <div className="text-[11px] font-bold uppercase tracking-wide text-center" style={{ color: c.muted }}>{rotulo}</div>
-      <div className="flex items-center justify-between gap-1 mt-0.5">
-        <button type="button" onClick={() => muda(-passo)} className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+      <div className="flex items-center justify-between gap-0.5 mt-0.5">
+        <button type="button" onClick={() => muda(-passo)} className="w-9 h-10 rounded-xl flex items-center justify-center shrink-0"
           style={botao} aria-label={`Diminuir ${rotulo}`}><Minus size={18} strokeWidth={2.5} /></button>
         <input value={valor} inputMode="decimal" onFocus={(e) => e.target.select()}
           onChange={(e) => setValor(e.target.value.replace(",", "."))}
-          className="w-full min-w-0 text-center text-[30px] font-extrabold bg-transparent outline-none tracking-tight"
-          style={{ color: c.ink }} aria-label={rotulo} />
-        <button type="button" onClick={() => muda(passo)} className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+          className="w-full min-w-0 text-center font-extrabold bg-transparent outline-none tracking-tight"
+          style={{ color: c.ink, fontSize: String(valor).length > 4 ? 17 : String(valor).length > 3 ? 21 : 30 }} aria-label={rotulo} />
+        <button type="button" onClick={() => muda(passo)} className="w-9 h-10 rounded-xl flex items-center justify-center shrink-0"
           style={botao} aria-label={`Aumentar ${rotulo}`}><Plus size={18} strokeWidth={2.5} /></button>
       </div>
       <div className="text-[11px] font-medium text-center h-4" style={{ color: dicaCor || c.muted }}>{dica || ""}</div>
@@ -2382,6 +2368,11 @@ function HistTreinos({ c, series }) {
                         </span>
                       ))}
                     </div>
+                    {ls.filter((s) => s.obs).map((s, i) => (
+                      <div key={`o${i}`} className="text-xs mt-1 flex gap-1.5" style={{ color: c.muted }}>
+                        <Pencil size={11} style={{ marginTop: 2, flexShrink: 0 }} /> série {ls.indexOf(s) + 1}: {s.obs}
+                      </div>
+                    ))}
                   </div>
                 ))}
               </div>
@@ -2512,7 +2503,7 @@ function TelaMarcos({ c, marcos, setMarcos }) {
   const [mes, setMes] = useState(new Date(agora.getFullYear(), agora.getMonth(), 1));
   const [form, setForm] = useState(null);
 
-  const nomeMes = mes.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+  const nomeMes = (() => { const t = mes.toLocaleDateString("pt-BR", { month: "long", year: "numeric" }); return t.charAt(0).toUpperCase() + t.slice(1); })();
   const primeiroDia = new Date(mes.getFullYear(), mes.getMonth(), 1).getDay();
   const totalDias = new Date(mes.getFullYear(), mes.getMonth() + 1, 0).getDate();
   const iso = (d) => `${mes.getFullYear()}-${String(mes.getMonth() + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
@@ -2523,7 +2514,7 @@ function TelaMarcos({ c, marcos, setMarcos }) {
       <div className="p-4 rounded-2xl" style={{ background: c.surface, boxShadow: c.sombra }}>
         <div className="flex items-center justify-between mb-3">
           <button type="button" onClick={() => setMes(new Date(mes.getFullYear(), mes.getMonth() - 1, 1))} className="p-2"><ChevronLeft size={18} /></button>
-          <span className="font-semibold capitalize">{nomeMes}</span>
+          <span className="font-semibold">{nomeMes}</span>
           <button type="button" onClick={() => setMes(new Date(mes.getFullYear(), mes.getMonth() + 1, 1))} className="p-2"><ChevronRight size={18} /></button>
         </div>
 
@@ -2535,7 +2526,7 @@ function TelaMarcos({ c, marcos, setMarcos }) {
           {Array.from({ length: totalDias }).map((_, i) => {
             const dia = i + 1;
             const marco = marcos.find((m) => m.data === iso(dia));
-            const cor = marco ? TIPOS_MARCO.find((t) => t.id === marco.tipo).cor : null;
+            const cor = marco ? (TIPOS_MARCO.find((t) => t.id === marco.tipo) || TIPOS_MARCO[0]).cor : null;
             return (
               <button type="button" key={dia} onClick={() => setForm({ data: iso(dia), tipo: marco?.tipo || "pr", nota: marco?.nota || "" })}
                 className="aspect-square rounded-lg flex flex-col items-center justify-center text-sm"
@@ -2548,35 +2539,8 @@ function TelaMarcos({ c, marcos, setMarcos }) {
         </div>
       </div>
 
-      <div className="flex gap-3 text-xs flex-wrap" style={{ color: c.muted }}>
-        {TIPOS_MARCO.map((t) => (
-          <span key={t.id} className="flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full" style={{ background: t.cor }} />{t.label}
-          </span>
-        ))}
-      </div>
-
-      {doMes.length > 0 && (
-        <div className="space-y-2">
-          {doMes.sort((a, b) => a.data.localeCompare(b.data)).map((m) => (
-            <div key={m.data} className="flex items-center gap-3 px-4 py-3 rounded-xl"
-              style={{ background: c.surface, boxShadow: c.sombra }}>
-              <Flag size={16} style={{ color: TIPOS_MARCO.find((t) => t.id === m.tipo).cor }} />
-              <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium">{TIPOS_MARCO.find((t) => t.id === m.tipo).label}</div>
-                {m.nota && <div className="text-sm" style={{ color: c.muted }}>{m.nota}</div>}
-              </div>
-              <span className="text-sm shrink-0" style={{ color: c.muted, fontFamily: MONO }}>{dataBR(m.data).slice(0, 5)}</span>
-              <button type="button" onClick={() => setMarcos((ms) => ms.filter((x) => x.data !== m.data))} aria-label="Remover marco">
-                <X size={16} style={{ color: c.muted }} />
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-
       {form && (
-        <div className="p-4 rounded-2xl space-y-3" style={{ background: c.surface, border: `1px solid ${c.accent}` }}>
+        <div className="p-4 rounded-3xl space-y-3" style={{ background: c.surface, boxShadow: `inset 0 0 0 1.5px ${c.accent}` }}>
           <div className="font-semibold">Marcar {dataBR(form.data)}</div>
           <div className="flex gap-2 flex-wrap">
             {TIPOS_MARCO.map((t) => (
@@ -2604,6 +2568,34 @@ function TelaMarcos({ c, marcos, setMarcos }) {
           </div>
         </div>
       )}
+
+      <div className="flex gap-3 text-xs flex-wrap" style={{ color: c.muted }}>
+        {TIPOS_MARCO.map((t) => (
+          <span key={t.id} className="flex items-center gap-1">
+            <span className="w-2 h-2 rounded-full" style={{ background: t.cor }} />{t.label}
+          </span>
+        ))}
+      </div>
+
+      {doMes.length > 0 && (
+        <div className="space-y-2">
+          {doMes.sort((a, b) => a.data.localeCompare(b.data)).map((m) => (
+            <div key={m.data} className="flex items-center gap-3 px-4 py-3 rounded-xl"
+              style={{ background: c.surface, boxShadow: c.sombra }}>
+              <Flag size={16} style={{ color: (TIPOS_MARCO.find((t) => t.id === m.tipo) || TIPOS_MARCO[0]).cor }} />
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-medium">{(TIPOS_MARCO.find((t) => t.id === m.tipo) || TIPOS_MARCO[0]).label}</div>
+                {m.nota && <div className="text-sm" style={{ color: c.muted }}>{m.nota}</div>}
+              </div>
+              <span className="text-sm shrink-0" style={{ color: c.muted, fontFamily: MONO }}>{dataBR(m.data).slice(0, 5)}</span>
+              <button type="button" onClick={() => setMarcos((ms) => ms.filter((x) => x.data !== m.data))} aria-label="Remover marco">
+                <X size={16} style={{ color: c.muted }} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
     </div>
   );
 }
@@ -2694,6 +2686,7 @@ function TelaCorpo({ c, pesos, setPesos }) {
   const [cintura, setCintura] = useState("");
   const [data, setData] = useState(hoje());
   const [erro, setErro] = useState("");
+  const [info, setInfo] = useState(false);
 
   /* média dos registros nos `dias` dias que terminam em `fim` */
   const media = useCallback((fim, dias = 7) => {
@@ -2758,26 +2751,27 @@ function TelaCorpo({ c, pesos, setPesos }) {
         <div className="px-3 py-2.5 rounded-xl text-sm" style={{ background: c.surface2, color: c[leitura.tom] }}>{leitura.txt}</div>
       )}
 
-      <div className="p-4 rounded-2xl space-y-3" style={{ background: c.surface, border: `1px solid ${c.accent}` }}>
-        <div className="flex items-center justify-between">
-          <span className="font-semibold flex items-center gap-2"><Scale size={17} /> Registrar</span>
+      <div className="p-4 rounded-3xl space-y-3" style={{ background: c.surface, boxShadow: c.sombra }}>
+        <div className="flex items-center justify-between gap-2">
+          <span className="font-bold flex items-center gap-2 flex-1"><Scale size={17} /> Registrar</span>
+          <BotaoIcone c={c} icone={Info} onClick={() => setInfo((v) => !v)} ativo={info} rotulo="Como se pesar" size={16} />
           <input type="date" value={data} max={hoje()} onChange={(e) => setData(e.target.value || hoje())}
             className="px-2 py-1 rounded-lg text-sm outline-none"
             style={{ background: c.surface2, color: c.ink, border: `1px solid ${c.line}`, fontFamily: MONO, colorScheme: "inherit" }} />
         </div>
         <div className="grid grid-cols-2 gap-3">
           <Stepper c={c} rotulo="Peso (kg)" valor={kg} setValor={setKg} passo={0.1} min={0} />
-          <Stepper c={c} rotulo="Cintura (cm) · opcional" valor={cintura} setValor={setCintura} passo={0.5} min={0} />
+          <Stepper c={c} rotulo="Cintura (cm)" valor={cintura} setValor={setCintura} passo={0.5} min={0} dica="opcional" />
         </div>
         {erro && <div className="text-sm" style={{ color: c.pr }}>{erro}</div>}
         <button type="button" onClick={salvar} className="w-full py-3 rounded-xl font-semibold flex items-center justify-center gap-2"
           style={{ background: c.accent, color: c.accentInk }}>
           <Check size={18} /> Salvar {data === hoje() ? "hoje" : dataBR(data).slice(0, 5)}
         </button>
-        <p className="text-xs" style={{ color: c.muted }}>
+        {info && <p className="text-sm p-3 rounded-2xl leading-relaxed" style={{ background: c.surface2, color: c.muted }}>
           Pese-se sempre do mesmo jeito: na academia, antes do treino, com roupa parecida. O peso de um dia varia 1–2 kg por água e comida, então o que vale é a média de 7 dias.
           Cintura: 1x por semana, fita na altura do umbigo, barriga relaxada.
-        </p>
+        </p>}
       </div>
 
       {grafico.length > 1 && (
@@ -2806,7 +2800,7 @@ function TelaCorpo({ c, pesos, setPesos }) {
 
       {ultCintura && (
         <div className="px-4 py-3 rounded-2xl flex items-center justify-between text-sm"
-          style={{ background: c.surface, border: `1px solid ${c.line}`, fontFamily: MONO }}>
+          style={{ background: c.surface, boxShadow: c.sombra }}>
           <span style={{ color: c.muted }}>cintura · {dataBR(ultCintura.data).slice(0, 5)}</span>
           <span className="font-semibold">
             {fmt1(ultCintura.cintura)} cm
