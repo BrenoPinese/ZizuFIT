@@ -120,7 +120,7 @@ async function gravarBruto(obj) {
    Cargas de polia/máquina em kg (5 kg por placa). "Por lado" = peso de UM
    lado. `obs` = só a dica necessária, curta; a explicação fica no Guia. */
 
-const PROGRAMA_VERSAO = 10; /* v8 = essenciais A–C + extras D–G, bi-sets com um descanso por rodada; v9 = marco da reformulação (14/11); v10 = academia só seg–sex, fim de semana opcional, bike depois de todo treino */
+const PROGRAMA_VERSAO = 11; /* v8 = essenciais A–C + extras D–G, bi-sets com um descanso por rodada; v9 = marco da reformulação (14/11); v10 = academia só seg–sex, fim de semana opcional, bike depois de todo treino; v11 = Dead Bug sai do E (ele não quer), entra a Prancha */
 
 const STATUS = {
   subir: { label: "pode subir", cor: "ok" },
@@ -189,7 +189,7 @@ const TREINOS_PADRAO = [
       { nome: "Voador (Peck Deck)", equip: "placa", series: 3, reps: "12-15", descanso: 60, alvo: 30, status: "novo", biset: 1 },
       { nome: "Crucifixo Invertido no Peck Deck", equip: "placa", series: 3, reps: "15-20", descanso: 60, alvo: 20, status: "novo", biset: 1, obs: "De frente para o aparelho." },
       { nome: "Prancha Lateral", equip: "corpo", series: 2, reps: "30-45 s cada lado", descanso: 45, alvo: 0, status: "novo" },
-      { nome: "Dead Bug", equip: "corpo", series: 2, reps: "8 cada lado", descanso: 45, alvo: 0, status: "novo", obs: "Lombar colada no chão." },
+      { nome: "Abdominal Prancha", equip: "corpo", series: 2, reps: "30-45 s", descanso: 45, alvo: 0, status: "manter", obs: "Quadril alinhado. Parou de segurar a lombar, acabou a série." },
     ],
   },
   {
@@ -293,12 +293,36 @@ const HANDEBOL_PADRAO = { dias: [2, 4], hora: "22h" };
    quadra; `treinos` diz qual treino cai em cada dia (treino que não aparece
    fica de fora da semana); `reserva` é o plano B: nesse dia, se o treino
    indicado ainda não foi feito na semana, ele passa na frente; `avisos`
-   troca o aviso do treino só nessa semana. */
+   troca o aviso do treino só nessa semana; `trocas` muda nome/duração/
+   exercícios de um treino só nessa semana (não é salvo no programa). */
 const SEMANAS_ESPECIAIS = [
   {
     inicio: "2026-11-09", fim: "2026-11-15",
     feitosFora: { A: "2026-11-09" }, /* o A de segunda foi feito no plano anterior: conta como feito mesmo sem registro no app */
-    nota: "Semana de transição: o A de segunda já foi feito. Ter D · Qua B · Qui E · Sex C. Sábado e domingo são opcionais. No fim de semana a gente reformula o programa inteiro — exporte o backup antes.",
+    /* 12/11: ele fez A, B e C seg/ter/qua e pulou o Nórdico (não sabe fazer).
+       Fechamento: Qui E (sem perna, handebol 22h) e Sex D com Elevação Lateral
+       (ombro lateral estava em ~7,5 séries na semana) e Flexora com descida
+       lenta no lugar do Nórdico (posterior tinha só 6 séries). */
+    treinos: { 1: "A", 2: "B", 3: "C", 4: "E", 5: "D", 6: "F", 0: "G" },
+    nota: "Semana diferente: A, B e C já foram (seg, ter, qua). Qui E · Sex D com Elevação Lateral e Flexora no lugar do Nórdico que ficou de fora. Sábado e domingo opcionais. No fim de semana a gente reformula o programa — exporte o backup antes.",
+    avisos: {
+      E: "Handebol às 22h: nada de perna. No Voador deixe 2–3 reps sobrando, o peito já treinou ter e qua. Ontem teve perna pesada: aqueça bem os sprints na quadra.",
+      D: "Sexta sem handebol, fecha a semana. A Flexora repõe o Nórdico: desça em 3–4 s e deixe 2 reps sobrando. Coxa doendo ou “puxando” do jogo? Pule a Flexora.",
+    },
+    trocas: {
+      D: {
+        nome: "Extra D+ · Braço + Ombro + Posterior", duracao: "~40 min + 25–30 bike",
+        exercicios: [
+          { nome: "Rotação Externa na Polia", equip: "placa", series: 2, reps: "12-15", descanso: 45, alvo: 5, status: "novo", biset: 1, obs: "Reps para cada braço. Cotovelo colado, bem leve." },
+          { nome: "Face Pull na Polia (corda)", equip: "placa", series: 2, reps: "12-15", descanso: 45, alvo: 15, status: "novo", biset: 1, obs: "Corda até a testa, cotovelos altos." },
+          { nome: "Rosca Direta (Barra W)", equip: "anilha", series: 3, reps: "10-12", descanso: 60, alvo: 9, status: "manter", biset: 2 },
+          { nome: "Tríceps Corda na Polia", equip: "placa", series: 3, reps: "12-15", descanso: 60, alvo: 25, status: "manter", biset: 2, obs: "Abra a corda no fim." },
+          { nome: "Elevação Lateral com Halteres", equip: "halter", series: 3, reps: "12-15", descanso: 60, alvo: 10, status: "manter", biset: 3, obs: "Fique em 10 até fechar 3×15." },
+          { nome: "Abdominal na Polia (ajoelhado)", equip: "placa", series: 3, reps: "12-15", descanso: 60, alvo: 30, status: "novo", biset: 3, obs: "Enrole o tronco, quadril parado." },
+          { nome: "Cadeira Flexora (Sentado)", equip: "placa", series: 3, reps: "8-10", descanso: 90, alvo: 30, status: "novo", obs: "Descida em 3–4 s, 2 reps sobrando. Repõe o Nórdico." },
+        ],
+      },
+    },
   },
   { inicio: "2026-10-19", fim: "2026-10-25", handebol: { dias: [], hora: "" } },
   {
@@ -448,6 +472,13 @@ function diaDoTreino(t, iso = hoje()) {
 }
 
 const avisoDoTreino = (t, iso = hoje()) => semanaEspecial(iso)?.avisos?.[t.id] ?? t.aviso;
+
+/* aplica as `trocas` da semana especial por cima do programa salvo (só para mostrar/treinar) */
+function treinosDaSemana(lista, iso = hoje()) {
+  const trocas = semanaEspecial(iso)?.trocas;
+  if (!trocas) return lista;
+  return lista.map((t) => (trocas[t.id] ? { ...t, ...trocas[t.id] } : t));
+}
 
 const naSemanaDeRetorno = (iso = hoje()) => iso >= RETORNO.inicio && iso <= RETORNO.fim;
 
@@ -697,7 +728,8 @@ export default function AppTreino() {
   const [corDestaque, setCorDestaque] = useState("laranja");
   const [aba, setAba] = useState("treinos");
   const [carregando, setCarregando] = useState(true);
-  const [treinos, setTreinos] = useState(TREINOS_PADRAO);
+  const [treinosSalvos, setTreinos] = useState(TREINOS_PADRAO);
+  const treinos = useMemo(() => treinosDaSemana(treinosSalvos), [treinosSalvos]); /* com as trocas da semana; o salvo continua sendo o programa */
   const [series, setSeries] = useState([]);
   const [marcos, setMarcos] = useState([]);
   const [conclusoes, setConclusoes] = useState([]);
@@ -876,14 +908,14 @@ export default function AppTreino() {
   const salvar = useCallback(async () => {
     const ok = await gravarBruto({
       programaVersao: PROGRAMA_VERSAO,
-      treinos, series, marcos, conclusoes, pesos, cardios, descanso, sessao, modoTema, corDestaque,
+      treinos: treinosSalvos, series, marcos, conclusoes, pesos, cardios, descanso, sessao, modoTema, corDestaque,
       fimEm, pausadoEm, totalDescanso,
     });
     setSemPersistencia(!ok);
     if (ok) setUltimoSalvo(Date.now());
-  }, [treinos, series, marcos, conclusoes, pesos, cardios, descanso, sessao, modoTema, corDestaque, fimEm, pausadoEm, totalDescanso]);
+  }, [treinosSalvos, series, marcos, conclusoes, pesos, cardios, descanso, sessao, modoTema, corDestaque, fimEm, pausadoEm, totalDescanso]);
 
-  useEffect(() => { if (!carregando) salvar(); }, [series, marcos, conclusoes, pesos, cardios, descanso, sessao, modoTema, corDestaque, treinos, fimEm, pausadoEm, carregando]); // eslint-disable-line
+  useEffect(() => { if (!carregando) salvar(); }, [series, marcos, conclusoes, pesos, cardios, descanso, sessao, modoTema, corDestaque, treinosSalvos, fimEm, pausadoEm, carregando]); // eslint-disable-line
 
   /* toda troca de aba começa no topo */
   useEffect(() => { window.scrollTo(0, 0); }, [aba]);
@@ -1019,7 +1051,7 @@ export default function AppTreino() {
     try {
       const payload = JSON.stringify({
         v: 8, programaVersao: PROGRAMA_VERSAO, exportado: new Date().toISOString(),
-        treinos, series, marcos, conclusoes, pesos, cardios, descanso, modoTema, corDestaque,
+        treinos: treinosSalvos, series, marcos, conclusoes, pesos, cardios, descanso, modoTema, corDestaque,
       }, null, 2);
       const blob = new Blob([payload], { type: "application/json" });
       const url = URL.createObjectURL(blob);
@@ -1341,7 +1373,8 @@ function TelaTreinos({ c, treinos, ultimaVez, iniciar, sessao, continuar, progre
         <div className="grid grid-cols-7 gap-1">
           {[1, 2, 3, 4, 5, 6, 0].map((dow, i) => {
             const iso = addDias(progresso.inicio, i);
-            const tr = treinos.find((x) => DOW[x.dia] === dow);
+            const agenda = semanaEspecial(iso)?.treinos;
+            const tr = agenda ? treinos.find((x) => x.id === agenda[dow]) : treinos.find((x) => DOW[x.dia] === dow);
             const f = progresso.dias.has(iso);
             const ehHoje = iso === hoje();
             const essencial = tr && !tr.extra;
