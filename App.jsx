@@ -294,8 +294,63 @@ const HANDEBOL_PADRAO = { dias: [2, 4], hora: "22h" };
    fica de fora da semana); `reserva` é o plano B: nesse dia, se o treino
    indicado ainda não foi feito na semana, ele passa na frente; `avisos`
    troca o aviso do treino só nessa semana; `trocas` muda nome/duração/
-   exercícios de um treino só nessa semana (não é salvo no programa). */
+   exercícios de um treino só nessa semana (não é salvo no programa);
+   `cardio` troca o cardio de um dia (null = sem cardio); `meta` = dias de
+   academia que valem na semana (padrão 5). */
 const SEMANAS_ESPECIAIS = [
+  {
+    inicio: "2026-11-16", fim: "2026-11-22",
+    /* 16/11: academia só seg–qui (sexta 20/11 é feriado), formatura na quinta
+       à noite, handebol só na terça às 20h30 (quinta não tem). Os 3 essenciais
+       ficam inteiros: A seg, B qua e C na quinta, que vira o "dia de sexta"
+       (perna mais pesada, recupera no feriado + fim de semana). Terça = D
+       com o peito/ombro posterior do E, que sai da semana. Nórdico ainda fora
+       (ele não sabe fazer): Flexora com descida lenta no lugar. */
+    handebol: { dias: [2], hora: "20h30" },
+    treinos: { 1: "A", 2: "D", 3: "B", 4: "C", 6: "F", 0: "G" },
+    meta: 4,
+    cardio: {
+      2: { tipo: "bike", min: 15, nota: "bem leve · handebol 20h30" },
+      4: { tipo: "bike", min: 20, nota: "sem handebol · se o tempo apertar, corte a bike" },
+      5: null,
+    },
+    nota: "Semana de 4 dias (sexta é feriado): Seg A · Ter D+ sem perna, handebol 20h30 · Qua B · Qui C, a perna pesada, antes da formatura. Fim de semana opcional.",
+    avisos: {
+      A: "Amanhã tem handebol às 20h30: na perna, pare com 2 reps sobrando. Superior pode ir a 1 rep da falha.",
+      D: "Handebol às 20h30: nada de perna, 2–3 reps sobrando e nada de falha na pegada. Termine até umas 18h.",
+      B: "Sem handebol amanhã, mas amanhã é o C (perna pesada): no búlgaro deixe 2 reps sobrando. Superior pode ir a 1 rep da falha.",
+      C: "Último treino da semana: perna pode ir a 1–2 reps da falha, a dor cai no feriado. Formatura à noite: se apertar, corte a bike, não o treino.",
+      F: "Opcional: só se tiver vontade. Quinta teve perna pesada, então aqui é leve, 2–3 reps sobrando.",
+    },
+    trocas: {
+      D: {
+        nome: "Extra D+ · Braço + Ombro + Peito", duracao: "~40 min + 15 bike",
+        exercicios: [
+          { nome: "Rotação Externa na Polia", equip: "placa", series: 2, reps: "12-15", descanso: 45, alvo: 5, status: "novo", biset: 1, obs: "Reps para cada braço. Cotovelo colado, bem leve." },
+          { nome: "Face Pull na Polia (corda)", equip: "placa", series: 2, reps: "12-15", descanso: 45, alvo: 15, status: "novo", biset: 1, obs: "Corda até a testa, cotovelos altos." },
+          { nome: "Voador (Peck Deck)", equip: "placa", series: 3, reps: "12-15", descanso: 60, alvo: 30, status: "novo", biset: 2, obs: "2–3 reps sobrando: amanhã tem supino inclinado." },
+          { nome: "Crucifixo Invertido no Peck Deck", equip: "placa", series: 3, reps: "15-20", descanso: 60, alvo: 20, status: "novo", biset: 2, obs: "De frente para o aparelho." },
+          { nome: "Rosca Direta (Barra W)", equip: "anilha", series: 3, reps: "10-12", descanso: 60, alvo: 9, status: "manter", biset: 3, obs: "Sem falha: a mão precisa estar boa na quadra." },
+          { nome: "Tríceps Corda na Polia", equip: "placa", series: 3, reps: "12-15", descanso: 60, alvo: 25, status: "manter", biset: 3, obs: "Abra a corda no fim." },
+          { nome: "Abdominal na Polia (ajoelhado)", equip: "placa", series: 3, reps: "12-15", descanso: 45, alvo: 30, status: "novo", biset: 4, obs: "Enrole o tronco, quadril parado." },
+          { nome: "Prancha Lateral", equip: "corpo", series: 2, reps: "30-45 s cada lado", descanso: 45, alvo: 0, status: "novo", biset: 4 },
+        ],
+      },
+      C: {
+        duracao: "~50 min + 20 bike",
+        exercicios: [
+          { nome: "Leg Press 45°", equip: "anilha", series: 3, reps: "8-12", descanso: 150, alvo: 70, status: "manter", obs: "Joelho a ~90°, quadril sem sair do banco." },
+          { nome: "Stiff com Halteres", equip: "halter", series: 3, reps: "8-10", descanso: 120, alvo: 24, status: "manter", obs: "Costas neutras. Feche 3×10 e vá para 26." },
+          { nome: "Remada Curvada c/ Halteres", equip: "halter", series: 3, reps: "8-10", descanso: 90, alvo: 22, status: "manter", biset: 1, obs: "Peito apoiado no banco inclinado." },
+          { nome: "Crossover na Polia", equip: "placa", series: 3, reps: "10-15", descanso: 90, alvo: 15, status: "manter", biset: 1, obs: "Fique em 15 até fechar 3×15." },
+          { nome: "Cadeira Flexora (Sentado)", equip: "placa", series: 3, reps: "8-10", descanso: 90, alvo: 30, status: "novo", obs: "Descida em 3–4 s. Está no lugar do Nórdico." },
+          { nome: "Copenhagen (adutor)", equip: "corpo", series: 2, reps: "20-30 s cada lado", descanso: 45, alvo: 0, status: "novo", obs: "Joelho no banco = mais fácil; pé = mais difícil." },
+          { nome: "Rosca Martelo", equip: "halter", series: 3, reps: "10-12", descanso: 60, alvo: 12, status: "manter", biset: 2 },
+          { nome: "Elevação Lateral no Cabo", equip: "placa", series: 3, reps: "12-15", descanso: 60, alvo: 10, status: "manter", biset: 2, obs: "Cabo passando pela frente do corpo." },
+        ],
+      },
+    },
+  },
   {
     inicio: "2026-11-09", fim: "2026-11-15",
     feitosFora: { A: "2026-11-09" }, /* o A de segunda foi feito no plano anterior: conta como feito mesmo sem registro no app */
@@ -450,7 +505,9 @@ function textoHandebol(h = handebolDaSemana()) {
 }
 
 function cardioDoDia(iso = hoje()) {
-  return CARDIO_POR_DIA[dowDe(iso)] || null;
+  const dow = dowDe(iso);
+  const daSemana = semanaEspecial(iso)?.cardio;
+  return (daSemana && dow in daSemana ? daSemana[dow] : CARDIO_POR_DIA[dow]) || null;
 }
 
 /* treino de hoje: pela agenda da semana especial (com o plano B) ou pelo dia fixo do treino */
@@ -1044,7 +1101,7 @@ export default function AppTreino() {
     const essenciais = treinos.filter((t) => !t.extra);
     const essenciaisFeitos = essenciais.filter((t) => treinosFeitos.has(t.id)).length;
     const diasUteis = [...dias].filter((d) => { const w = dowDe(d); return w >= 1 && w <= 5; }).length;
-    return { feitos: diasUteis, meta: 5, dias, inicio, treinosFeitos, handebol, essenciaisFeitos, essenciaisMeta: essenciais.length };
+    return { feitos: diasUteis, meta: semanaEspecial()?.meta || 5, dias, inicio, treinosFeitos, handebol, essenciaisFeitos, essenciaisMeta: essenciais.length };
   }, [series, conclusoes, cardios, treinos]);
 
   const exportarDados = () => {
