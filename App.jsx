@@ -120,7 +120,7 @@ async function gravarBruto(obj) {
    Cargas de polia/máquina em kg (5 kg por placa). "Por lado" = peso de UM
    lado. `obs` = só a dica necessária, curta; a explicação fica no Guia. */
 
-const PROGRAMA_VERSAO = 11; /* v8 = essenciais A–C + extras D–G, bi-sets com um descanso por rodada; v9 = marco da reformulação (14/11); v10 = academia só seg–sex, fim de semana opcional, bike depois de todo treino; v11 = Dead Bug sai do E (ele não quer), entra a Prancha */
+const PROGRAMA_VERSAO = 12; /* v8 = essenciais A–C + extras D–G, bi-sets com um descanso por rodada; v9 = marco da reformulação (14/11); v10 = academia só seg–sex, fim de semana opcional, bike depois de todo treino; v11 = Dead Bug sai do E (ele não quer), entra a Prancha; v12 (24/11) = B: Afundo Reverso no Smith no lugar do Búlgaro, A: sai o Salto no Step e entra a Panturrilha em bi-set com a Flexora, D: Abdominal Supra com anilha no lugar da polia */
 
 const STATUS = {
   subir: { label: "pode subir", cor: "ok" },
@@ -134,22 +134,22 @@ const TREINOS_PADRAO = [
     id: "A", nome: "Full Body A · Quadríceps + Empurrar", dia: "Segunda", duracao: "~50 min + 20 cardio", aquecimento: "v6A",
     aviso: "Amanhã tem handebol: na perna, pare com 2 reps sobrando. Superior pode ir a 1 rep da falha.",
     exercicios: [
-      { nome: "Salto no Step (contramovimento)", equip: "corpo", series: 3, reps: "3", descanso: 60, alvo: 0, status: "novo", obs: "Salta o mais alto possível, aterrissa macio. Qualidade, não cansaço." },
       { nome: "Agachamento no Smith", equip: "anilha", series: 3, reps: "6-8", descanso: 180, alvo: 50, status: "manter", obs: "Coxa pelo menos paralela. 2 reps sobrando." },
       { nome: "Supino Reto com Barra", equip: "anilha", series: 3, reps: "6-8", descanso: 120, alvo: 30, status: "manter", biset: 1, obs: "Escápulas presas, barra na linha do mamilo." },
       { nome: "Puxada Frontal na Polia", equip: "placa", series: 3, reps: "8-10", descanso: 120, alvo: 50, status: "manter", biset: 1, obs: "Puxe até o queixo, sem jogar o tronco." },
-      { nome: "Cadeira Flexora (Sentado)", equip: "placa", series: 3, reps: "10-12", descanso: 90, alvo: 30, status: "novo", obs: "Descida em 2–3 s." },
-      { nome: "Elevação Lateral com Halteres", equip: "halter", series: 3, reps: "12-15", descanso: 60, alvo: 10, status: "manter", biset: 2, obs: "Fique em 10 até fechar 3×15." },
-      { nome: "Tríceps Francês na Polia (corda)", equip: "placa", series: 3, reps: "10-12", descanso: 60, alvo: 15, status: "manter", biset: 2, obs: "Braços acima da cabeça." },
+      { nome: "Cadeira Flexora (Sentado)", equip: "placa", series: 3, reps: "10-12", descanso: 90, alvo: 30, status: "novo", biset: 2, obs: "Descida em 2–3 s." },
+      { nome: "Panturrilha Sentado", equip: "placa", series: 3, reps: "12-15", descanso: 90, alvo: 30, status: "novo", biset: 2, obs: "Pausa de 1 s embaixo, sobe tudo." },
+      { nome: "Elevação Lateral com Halteres", equip: "halter", series: 3, reps: "12-15", descanso: 60, alvo: 10, status: "manter", biset: 3, obs: "Fique em 10 até fechar 3×15." },
+      { nome: "Tríceps Francês na Polia (corda)", equip: "placa", series: 3, reps: "10-12", descanso: 60, alvo: 15, status: "manter", biset: 3, obs: "Braços acima da cabeça." },
     ],
   },
   {
     id: "B", nome: "Full Body B · Costas + Ombro + Unilateral", dia: "Quarta", duracao: "~50 min + 20 cardio", aquecimento: "v6B",
-    aviso: "Amanhã tem handebol: no búlgaro, pare com 2 reps sobrando. Superior pode ir a 1 rep da falha.",
+    aviso: "Amanhã tem handebol: no afundo, pare com 2 reps sobrando. Superior pode ir a 1 rep da falha.",
     exercicios: [
       { nome: "Supino Inclinado com Halteres", equip: "halter", series: 3, reps: "8-10", descanso: 90, alvo: 20, status: "manter", biset: 1, obs: "Feche 3×10 antes de ir para 22." },
       { nome: "Remada Baixa no Cabo", equip: "placa", series: 3, reps: "8-10", descanso: 90, alvo: 55, status: "subir", biset: 1, obs: "Escápulas para trás antes de puxar." },
-      { nome: "Agachamento Búlgaro", equip: "halter", series: 3, reps: "8-10 cada perna", descanso: 90, alvo: 8, status: "novo", obs: "Perna de trás só apoia. 2 reps sobrando." },
+      { nome: "Afundo Reverso no Smith", equip: "anilha", series: 3, reps: "8-10 cada perna", descanso: 90, alvo: 10, status: "novo", obs: "Passo para trás, joelho de trás quase no chão. Carga = um lado. 2 reps sobrando." },
       { nome: "Desenvolvimento com Halteres", equip: "halter", series: 3, reps: "8-10", descanso: 90, alvo: 14, status: "manter", biset: 2, obs: "Feche 3×10 com 14 antes de subir." },
       { nome: "Crucifixo Invertido com Halteres", equip: "halter", series: 3, reps: "12-15", descanso: 90, alvo: 6, status: "manter", biset: 2, obs: "Pode ser no peck deck, de costas." },
       { nome: "Rosca Scott", equip: "placa", series: 3, reps: "8-12", descanso: 60, alvo: 25, status: "manter", biset: 3, obs: "Desça até quase estender o cotovelo." },
@@ -179,7 +179,7 @@ const TREINOS_PADRAO = [
       { nome: "Face Pull na Polia (corda)", equip: "placa", series: 2, reps: "12-15", descanso: 45, alvo: 15, status: "novo", biset: 1, obs: "Corda até a testa, cotovelos altos." },
       { nome: "Rosca Direta (Barra W)", equip: "anilha", series: 3, reps: "10-12", descanso: 60, alvo: 9, status: "manter", biset: 2 },
       { nome: "Tríceps Corda na Polia", equip: "placa", series: 3, reps: "12-15", descanso: 60, alvo: 25, status: "manter", biset: 2, obs: "Abra a corda no fim." },
-      { nome: "Abdominal na Polia (ajoelhado)", equip: "placa", series: 3, reps: "12-15", descanso: 45, alvo: 30, status: "novo", obs: "Enrole o tronco, quadril parado." },
+      { nome: "Abdominal Supra com Anilha", equip: "livre", series: 3, reps: "12-15", descanso: 45, alvo: 5, status: "novo", obs: "Anilha no peito, sobe até a escápula sair do chão." },
     ],
   },
   {
@@ -221,6 +221,11 @@ const parceiroBiset = (treino, ex) =>
 const RENOMEAR_EXERCICIOS = {
   "Supino Reto na Máquina (Hack)": "Supino Reto com Barra",
 };
+/* Renomeia só as séries desses dias: em 18/11 e 24/11 ele fez o Afundo
+   Reverso no Smith (carga por lado) lançando no card do Búlgaro. */
+const RENOMEAR_POR_DATA = [
+  { de: "Agachamento Búlgaro", para: "Afundo Reverso no Smith", datas: ["2026-11-18", "2026-11-24"] },
+];
 
 /* Histórico importado do chat. Formato: [data, treino, exercício, [[reps, carga], ...]] */
 const HISTORICO_IMPORTADO = [
@@ -298,6 +303,22 @@ const HANDEBOL_PADRAO = { dias: [2, 4], hora: "22h" };
    `cardio` troca o cardio de um dia (null = sem cardio); `meta` = dias de
    academia que valem na semana (padrão 5). */
 const SEMANAS_ESPECIAIS = [
+  {
+    inicio: "2026-11-23", fim: "2026-11-29",
+    /* 24/11: semana de 3 treinos. Segunda ficou sem treino; ele fez o B na
+       terça (o que tem menos perna, handebol à noite), A na quarta e C na
+       sexta (perna pesada, recupera no fim de semana). D e E ficam de fora.
+       Férias a partir de 29/11. */
+    treinos: { 2: "B", 3: "A", 5: "C", 6: "F", 0: "G" },
+    meta: 3,
+    cardio: { 1: null, 4: null },
+    nota: "Semana de 3 treinos: Ter B · Qua A · Sex C. Extras D e E fora. Fim de semana opcional — e dia 28 tem a revisão para as férias.",
+    avisos: {
+      B: "Handebol hoje à noite: no afundo pare com 2 reps sobrando. Superior pode ir a 1 rep da falha.",
+      A: "Amanhã tem handebol: na perna, pare com 2 reps sobrando. Superior pode ir a 1 rep da falha.",
+      C: "Último treino da semana: perna pode ir a 1–2 reps da falha, recupera no fim de semana.",
+    },
+  },
   {
     inicio: "2026-11-16", fim: "2026-11-22",
     /* 16/11: academia só seg–qui (sexta 20/11 é feriado), formatura na quinta
@@ -409,12 +430,11 @@ const TIPOS_MARCO = [
    jogadores de handebol (Andersson et al., 2017). */
 const AQUECIMENTOS = {
   v6A: {
-    titulo: "Aquecimento · saltos + agachamento + supino", duracao: "~10 min",
+    titulo: "Aquecimento · agachamento + supino", duracao: "~10 min",
     itens: [
       { nome: "Bike leve", detalhe: "5 min em ritmo de conversa, só para esquentar" },
       { nome: "Quadril e tornozelo", detalhe: "10 agachamentos sem peso + 5 afundos com giro de tronco por perna + 10 balanços de perna (frente e lado)" },
       { nome: "Ombro", detalhe: "Rotação externa no cabo bem leve, 1×15 por braço, cotovelo colado + crucifixo invertido bem leve, 1×15" },
-      { nome: "Preparar os saltos", detalhe: "2×10 saltitos só no tornozelo + 2 saltos no step a ~70% do esforço" },
       { nome: "Aproximação", detalhe: "Smith: 1×8 leve, 1×5 com ~75% e 1×2 com ~90% da carga. Supino: 1×10 com ~50% e 1×5 com ~75%." },
     ],
   },
@@ -424,7 +444,7 @@ const AQUECIMENTOS = {
       { nome: "Bike leve", detalhe: "5 min em ritmo de conversa" },
       { nome: "Ombro", detalhe: "Rotação externa no cabo leve, 1×15 por braço + “livro aberto” deitado de lado, 8 por lado" },
       { nome: "Quadril", detalhe: "10 balanços de perna para o lado + 5 afundos laterais por lado + 10 pontes de glúteo" },
-      { nome: "Aproximação", detalhe: "Supino inclinado: 1×10 com ~50% da carga. Búlgaro: 1×6 por perna sem peso antes das séries." },
+      { nome: "Aproximação", detalhe: "Supino inclinado: 1×10 com ~50% da carga. Afundo: 1×6 por perna com o Smith vazio antes das séries." },
     ],
   },
   v6C: {
@@ -713,8 +733,11 @@ function migrarPrograma(d) {
     ...(d.marcos || []).filter((m) => !MARCOS_REMOVIDOS.includes(m.data) && !datasNovas.has(m.data)),
     ...MARCOS_PROGRAMA,
   ];
-  const series = (d.series || []).map((s) =>
-    RENOMEAR_EXERCICIOS[s.exercicio] ? { ...s, exercicio: RENOMEAR_EXERCICIOS[s.exercicio] } : s);
+  const series = (d.series || []).map((s) => {
+    const r = RENOMEAR_POR_DATA.find((x) => x.de === s.exercicio && x.datas.includes(diaLocal(s.data)));
+    if (r) return { ...s, exercicio: r.para };
+    return RENOMEAR_EXERCICIOS[s.exercicio] ? { ...s, exercicio: RENOMEAR_EXERCICIOS[s.exercicio] } : s;
+  });
   return { ...d, treinos: TREINOS_PADRAO, series, marcos, programaVersao: PROGRAMA_VERSAO, migrou: true };
 }
 
@@ -2140,7 +2163,7 @@ const NOME_MUSCULO = Object.fromEntries(MUSCULOS);
 const REGRAS_MUSCULO = [
   [/mobilidade|livro aberto|profundo segurando/, [], []],
   [/salto/, ["quadriceps"], ["gluteos", "panturrilha"]],
-  [/bulgaro/, ["quadriceps", "gluteos"], ["adutores"]],
+  [/bulgaro|afundo/, ["quadriceps", "gluteos"], ["adutores"]],
   [/agachamento|leg press|hack squat/, ["quadriceps"], ["gluteos", "adutores"]],
   [/extensora/, ["quadriceps"], []],
   [/flexora|nordico/, ["posterior"], []],
