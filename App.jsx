@@ -5,7 +5,7 @@ import {
 import {
   Dumbbell, History, CalendarDays, Play, Check, Plus, Minus,
   ChevronLeft, ChevronRight, Timer, Sun, Moon, X, Flag, Video, Flame, Info,
-  Trash2, ArrowRight, MoreVertical, Download, Upload, Pencil, Activity,
+  Trash2, ArrowRight, ArrowLeftRight, MoreVertical, Download, Upload, Pencil, Activity,
   Scale, BookOpen, Bike, ChevronDown, MoreHorizontal, Smartphone, SkipForward, Pause,
 } from "lucide-react";
 
@@ -557,6 +557,24 @@ function treinosDaSemana(lista, iso = hoje()) {
   return lista.map((t) => (trocas[t.id] ? { ...t, ...trocas[t.id] } : t));
 }
 
+/* troca feita na hora, só neste treino: `sessao.trocas` = { nomeOriginal: { nome, equip } }.
+   O exercício novo herda séries/reps/descanso/bi-set do original; as séries são
+   gravadas com o nome novo, então o histórico e a carga anterior ficam certos. */
+function aplicarTrocasSessao(lista, sessao) {
+  const trocas = sessao?.trocas;
+  if (!trocas || !Object.keys(trocas).length) return lista;
+  return lista.map((t) => (t.id !== sessao.treino ? t : {
+    ...t,
+    exercicios: t.exercicios.map((e) => (trocas[e.nome]
+      ? { ...e, nome: trocas[e.nome].nome, equip: trocas[e.nome].equip, alvo: 0, status: "novo", obs: "", original: e.nome }
+      : e)),
+  }));
+}
+
+const OPCOES_EQUIP = [
+  ["halter", "Halter"], ["placa", "Máquina / polia"], ["anilha", "Barra / Smith"], ["corpo", "Peso do corpo"], ["livre", "Outro"],
+];
+
 const naSemanaDeRetorno = (iso = hoje()) => iso >= RETORNO.inicio && iso <= RETORNO.fim;
 
 /* ------------------------------------------------------------- utilidades */
@@ -816,7 +834,8 @@ export default function AppTreino() {
   const [pesos, setPesos] = useState([]);     // [{ id, data, kg, cintura? }]
   const [cardios, setCardios] = useState([]); // [{ id, data, tipo, minutos }]
   const [descanso, setDescanso] = useState(90);
-  const [sessao, setSessao] = useState(null); // { treino, exercicio, inicio }
+  const [sessao, setSessao] = useState(null); // { treino, exercicio, inicio, aquecido?, trocas? }
+  const treinosSessao = aplicarTrocasSessao(treinos, sessao); /* com a troca feita na hora */
   const [aviso, setAviso] = useState(null);
   const [treinoFinalizado, setTreinoFinalizado] = useState(null);
   const importInput = useRef(null);
@@ -1022,7 +1041,7 @@ export default function AppTreino() {
     };
     setSeries((a) => [...a, nova]);
 
-    const treino = treinos.find((t) => t.id === sessao.treino);
+    const treino = treinosSessao.find((t) => t.id === sessao.treino);
     const ex = treino?.exercicios.find((e) => e.nome === exercicio);
     if (!treino || !ex) { iniciarDescanso(descansoEx || descanso); return; }
     const feitas = (nome) => seriesFeitas(nome) + (nome === exercicio ? 1 : 0);
@@ -1054,6 +1073,21 @@ export default function AppTreino() {
     }
   };
 
+  /* troca o exercício só neste treino; as séries de hoje já lançadas no card vão junto.
+     nome = null desfaz a troca e devolve as séries ao original. */
+  const trocarExercicio = (original, atual, nome, equip) => {
+    const destino = nome || original;
+    setSeries((a) => a.map((s) => (s.exercicio === atual && s.treino === sessao.treino && diaLocal(s.data) === hoje()
+      ? { ...s, exercicio: destino } : s)));
+    setSessao((s) => {
+      const trocas = { ...(s.trocas || {}) };
+      if (nome) trocas[original] = { nome, equip };
+      else delete trocas[original];
+      return { ...s, trocas, exercicio: destino };
+    });
+    mostrarAviso(nome ? `Hoje: ${nome} no lugar de ${original}.` : `Voltou para ${original}.`, 3000);
+  };
+
   const removerSerie = (id) => setSeries((a) => a.filter((s) => s.id !== id));
   const editarSerie = (id, patch) => setSeries((a) => a.map((s) => (s.id === id ? { ...s, ...patch } : s)));
 
@@ -1079,7 +1113,7 @@ export default function AppTreino() {
 
   const encerrarSessao = () => {
     if (!sessao) return;
-    const treino = treinos.find((t) => t.id === sessao.treino);
+    const treino = treinosSessao.find((t) => t.id === sessao.treino);
     const completo = !!treino?.exercicios.every((e) => seriesFeitas(e.nome) >= e.series);
     concluirSessao({ parcial: !completo });
   };
@@ -1218,7 +1252,7 @@ export default function AppTreino() {
 
         {aba === "sessao" && (
           sessao
-            ? <TelaSessao c={c} sessao={sessao} setSessao={setSessao} treinos={treinos}
+            ? <TelaSessao c={c} sessao={sessao} setSessao={setSessao} treinos={treinosSessao} trocar={trocarExercicio}
                 series={series} registrar={registrarSerie} encerrar={encerrarSessao}
                 removerSerie={removerSerie} editarSerie={editarSerie} onExportar={exportarDados}
                 cardios={cardios} registrarCardio={registrarCardio} removerCardio={removerCardio}
@@ -1640,9 +1674,34 @@ function TelaMais({ c, modoTema, setModoTema, corDestaque, setCorDestaque, tema,
    exercício com a TABELA DE SÉRIES (anterior × hoje) e os dois steppers
    grandes → botão de registrar sempre visível embaixo, com o descanso em
    destaque logo acima dele. Dicas e textos ficam atrás do "i". */
-function TelaSessao({ c, sessao, setSessao, treinos, series, registrar, encerrar, removerSerie, editarSerie, onExportar, cardios, registrarCardio, removerCardio, timer, sair }) {
+function TelaSessao({ c, sessao, setSessao, treinos, trocar, series, registrar, encerrar, removerSerie, editarSerie, onExportar, cardios, registrarCardio, removerCardio, timer, sair }) {
   const treino = treinos.find((t) => t.id === sessao.treino);
   const ex = treino.exercicios.find((e) => e.nome === sessao.exercicio) || treino.exercicios[0];
+  /* troca de exercício na hora */
+  const [trocaAberta, setTrocaAberta] = useState(false);
+  const [nomeTroca, setNomeTroca] = useState("");
+  const [equipTroca, setEquipTroca] = useState(null); /* null = adivinha pelo nome */
+  const [erroTroca, setErroTroca] = useState("");
+  const nomesConhecidos = useMemo(() => {
+    const doTreino = new Set(treino.exercicios.map((e) => e.nome));
+    const todos = new Set([...series.map((s) => s.exercicio), ...treinos.flatMap((t) => t.exercicios.map((e) => e.nome))]);
+    return [...todos].filter((n) => n && !doTreino.has(n)).sort((a, b) => a.localeCompare(b, "pt-BR"));
+  }, [series, treinos, treino]);
+  const equipConhecido = (nome) => {
+    const n = nome.trim().toLowerCase();
+    if (!n) return null;
+    const doPrograma = treinos.flatMap((t) => t.exercicios).find((e) => e.nome.toLowerCase() === n && e.equip);
+    return doPrograma ? doPrograma.equip : tipoCarga({ nome: nome.trim() });
+  };
+  const equipEscolhido = equipTroca || equipConhecido(nomeTroca) || ex.equip || "livre";
+  const confirmarTroca = () => {
+    const nome = nomeTroca.trim().replace(/\s+/g, " ");
+    if (nome.length < 3) return setErroTroca("Escreva o nome do exercício que você fez.");
+    if (nome.toLowerCase() === ex.nome.toLowerCase()) return setErroTroca("É o mesmo exercício.");
+    if (treino.exercicios.some((e) => e.nome.toLowerCase() === nome.toLowerCase())) return setErroTroca("Esse já está no treino de hoje.");
+    trocar(ex.original || ex.nome, ex.nome, nome, equipEscolhido);
+    setTrocaAberta(false);
+  };
   const [reps, setReps] = useState("");
   const [carga, setCarga] = useState("");
   const [obs, setObs] = useState("");
@@ -1717,6 +1776,7 @@ function TelaSessao({ c, sessao, setSessao, treinos, series, registrar, encerrar
     setEditId(null);
     setInfo(false);
     setNotaAberta(false);
+    setTrocaAberta(false);
     window.scrollTo({ top: 0, behavior: "smooth" });
     centralizarAtivo(pilulasRef.current);
   }, [ex.nome]); // eslint-disable-line
@@ -1854,7 +1914,9 @@ function TelaSessao({ c, sessao, setSessao, treinos, series, registrar, encerrar
           </div>
           <div className="flex items-start gap-2 mt-1">
             <h2 className="flex-1 text-[22px] font-extrabold leading-tight tracking-tight">{ex.nome}</h2>
-            <BotaoIcone c={c} icone={Info} onClick={() => setInfo((v) => !v)} ativo={info} rotulo="Dicas do exercício" />
+            <BotaoIcone c={c} icone={ArrowLeftRight} ativo={trocaAberta} rotulo="Trocar exercício hoje"
+              onClick={() => { setTrocaAberta((v) => !v); setNomeTroca(""); setEquipTroca(null); setErroTroca(""); setInfo(false); }} />
+            <BotaoIcone c={c} icone={Info} onClick={() => { setInfo((v) => !v); setTrocaAberta(false); }} ativo={info} rotulo="Dicas do exercício" />
             <a href={`https://www.youtube.com/results?search_query=${encodeURIComponent(`${ex.nome} execução técnica academia`)}`}
               target="_blank" rel="noreferrer" aria-label="Ver vídeo no YouTube" title="Ver vídeo no YouTube"
               className="w-9 h-9 rounded-full flex items-center justify-center shrink-0" style={{ background: c.surface2, color: c.ink }}>
@@ -1869,6 +1931,45 @@ function TelaSessao({ c, sessao, setSessao, treinos, series, registrar, encerrar
                 style={{ background: `${c[sugestao.tom]}1F`, color: c[sugestao.tom] }}>{chipSugestao}</button>
             )}
           </div>
+          {ex.original && (
+            <div className="mt-1.5 text-xs" style={{ color: c.muted }}>
+              hoje no lugar de {ex.original} ·{" "}
+              <button type="button" onClick={() => trocar(ex.original, ex.nome, null)} className="font-semibold underline" style={{ color: c.ink }}>desfazer</button>
+            </div>
+          )}
+
+          {trocaAberta && (
+            <div className="mt-3 p-3 rounded-2xl text-sm space-y-2.5" style={{ background: c.surface2 }}>
+              <div className="font-semibold">O que você vai fazer no lugar?</div>
+              <input list="zizu-nomes-ex" value={nomeTroca} autoFocus
+                onChange={(e) => { setNomeTroca(e.target.value); setErroTroca(""); }}
+                onKeyDown={(e) => { if (e.key === "Enter") confirmarTroca(); }}
+                placeholder="ex.: Afundo no Smith" className="w-full px-3 py-2.5 rounded-xl text-[15px] outline-none"
+                style={{ background: c.surface, color: c.ink, border: `1px solid ${c.line}` }} />
+              <datalist id="zizu-nomes-ex">
+                {nomesConhecidos.map((n) => <option key={n} value={n} />)}
+              </datalist>
+              <div className="flex flex-wrap gap-1.5">
+                {OPCOES_EQUIP.map(([id, rotulo]) => (
+                  <button type="button" key={id} onClick={() => setEquipTroca(id)}
+                    className="px-2.5 py-1 rounded-full text-xs font-semibold"
+                    style={{ background: equipEscolhido === id ? c.accent : c.surface, color: equipEscolhido === id ? c.accentInk : c.ink }}>
+                    {rotulo}
+                  </button>
+                ))}
+              </div>
+              <div className="text-xs" style={{ color: c.muted }}>
+                Só hoje — o programa não muda.{feitasHoje.length === 1 ? " A série já lançada aqui vai junto." : feitasHoje.length > 1 ? ` As ${feitasHoje.length} séries já lançadas aqui vão junto.` : ""}
+              </div>
+              {erroTroca && <div className="text-xs font-semibold" style={{ color: c.pr }}>{erroTroca}</div>}
+              <div className="flex gap-2">
+                <button type="button" onClick={confirmarTroca} className="flex-1 py-2.5 rounded-xl font-semibold"
+                  style={{ background: c.accent, color: c.accentInk }}>Trocar</button>
+                <button type="button" onClick={() => setTrocaAberta(false)} className="px-4 py-2.5 rounded-xl font-semibold"
+                  style={{ background: c.surface, color: c.ink }}>Cancelar</button>
+              </div>
+            </div>
+          )}
 
           {info && (
             <div className="mt-3 p-3 rounded-2xl text-sm space-y-2 leading-snug" style={{ background: c.surface2 }}>
